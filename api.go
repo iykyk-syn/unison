@@ -1,4 +1,4 @@
-// Package bcast enables:
+// Package rebro enables:
 //   - High throughput censorship resistant commitments
 //   - Dynamic and randomized quorums
 //   - Customization of hashing functions and signing schemes, including aggregatable signatures.
@@ -8,26 +8,50 @@
 // A trivial consensus algorithm to implement here would be to:
 // * Require full quorum as finalization condition
 // * Order blocks by public keys of quorum participants lexicographically
-package bcast
+package rebro
 
 import (
 	"context"
 )
 
-// Message encapsulates data to be broadcasted with a signature of the broadcasting identity.
-type Message struct {
-	// Signature over Message Data.
-	Signature Signature
-	// Data of the Message.
-	Data []byte
+// MessageData holds data of a broadcasted message.
+type MessageData = []byte
+
+// MessageID contains metadata that uniquely identifies a broadcasted message. It specifies
+// a minimally possible interface all the messages should conform to in order to be secured.
+type MessageID interface {
+	// Round returns the monotonically increasing round of the broadcasted message.
+	Round() uint64
+	// Signer returns identity of the entity committing to the message.
+	Signer() []byte
+	// Hash returns the hash digest of the message.
+	Hash() []byte
+	// String returns string representation of the message.
+	String() string
+
+	// New instantiates a new MessageID.
+	// Required for generic marshalling.
+	New() MessageID
+	// MarshalBinary serializes MessageID into series of bytes.
+	// Must return canonical representation of MessageData
+	MarshalBinary() ([]byte, error)
+	// UnmarshalBinary deserializes MessageID from a serias of bytes.
+	UnmarshalBinary([]byte) error
 }
 
-// Signature is a tuple containing signature body and reference to signing identity.
-type Signature struct {
-	// Body of the signature.
-	Body []byte
-	// Signer identity who produced the signature.
-	Signer []byte
+// Commitment maintains a set of signatures/acknowledgements from a quorum certifying validity
+// of an arbitrary broadcasted message. Validity rules are not defined by Commitment and are an external concern.
+type Commitment interface {
+	// ID returns MessageID that Commitment attests to.
+	ID() MessageID
+	// Data returns committed MessageData.
+	Data() MessageData
+	// Signatures provides list of all the signatures in the Commitment.
+	Signatures() []Signature
+	// AddSignature appends signature of a particular signer to the Commitment.
+	// Signature is expected to be verified beforehand.
+	// Reports true if enough signatures were collected.
+	AddSignature(Signature) (bool, error)
 }
 
 // QuorumCommitment is a set data Commitments(or certificates) by a quorum. It accumulates data
@@ -38,13 +62,15 @@ type Signature struct {
 // It expects arbitrary number of new Commitments to be added until finalization is triggered.
 // The finalization conditions and quorums are implementation specific.
 type QuorumCommitment interface {
-	// Add constructs new Commitment from given Message input, adds it to the set and returns.
-	// It should do necessary verification of the Message and its signature.
-	Add(Message) (Commitment, error)
-	// Get retrieves particular Commitment by the hash string of the committed Message.
-	Get(messagehash string) (Commitment, bool)
-	// Delete deletes Commitment by the hash sting of the committed Message.
-	Delete(messagehash string) bool
+	// Add constructs new Commitment from given the given message and adds it to the set.
+	// It must verify:
+	//  * Hash corresponds to MessageData // TODO: Consider hash check to be done by Broadcaster through hash.Hash
+	//  * Validity of the Signer
+	Add(MessageID, MessageData) error
+	// Get retrieves particular Commitment by the MessageID of the committed MessageData.
+	Get(MessageID) (Commitment, bool)
+	// Delete deletes Commitment by the MessageID of the committed MessageData.
+	Delete(MessageID) bool
 	// List provides all the Commitments in the QuorumCommitment.
 	List() []Commitment
 	// Finalize awaits finalization condition of the QuorumCommitment.
@@ -52,20 +78,7 @@ type QuorumCommitment interface {
 	Finalize(context.Context) error
 }
 
-// Commitment maintains a set of signatures/acknowledgements from quorum certifying validity
-// of an arbitrary Message. Validity rules are not defined by Commitment and are an external concern.
-type Commitment interface {
-	// Message returns data the Commitment attests to.
-	Message() Message
-	// MessageHash provides the hash digest of the committed Message.
-	MessageHash() string
-	// Signatures provides list of all the signatures in the Commitment.
-	Signatures() []Signature
-	// AddSignature appends signature of a particular signer to the Commitment.
-	AddSignature(Signature) error
-}
-
-// Broadcaster reliably broadcasts and commits the given Message. It delivers and verifies Messages
+// Broadcaster reliably broadcasts and commits the given MessageData. It delivers and verifies Messages
 // broadcasted by other quorum participants and accumulates them into QuorumCommitment until its
 // finalized.
 //
@@ -76,8 +89,23 @@ type Commitment interface {
 //
 // Broadcaster enables optionality(through polymorphism) for networking algorithms
 // (leader-based or mesh-based) by decoupling commitment data structure.
+//
+// It signs over broadcasted MessageIDs automatically after verifying them using Signer.
 type Broadcaster interface {
-	// Broadcast broadcasts given Message and awaits for Message and Signatures from other quorum
+	// Broadcast broadcasts given MessageData and awaits for MessageData and Signatures from other quorum
 	// participants until QuorumCommitment is finalized.
-	Broadcast(context.Context, Message, QuorumCommitment) error
+	Broadcast(context.Context, MessageID, MessageData, QuorumCommitment) error
+}
+
+// Verifier performs application specific message stateful verification.
+// It used by Broadcaster during broadcasting rounds.
+type Verifier interface {
+	// Verify executes verification of the MessageID and MessageData.
+	Verify(context.Context, MessageID, MessageData) error
+}
+
+// Orchestrator orchestrates multiple Broadcaster instances.
+type Orchestrator interface {
+	// NewBroadcaster instantiates a new Broadcaster.
+	NewBroadcaster(Signer, Verifier) (Broadcaster, error)
 }
