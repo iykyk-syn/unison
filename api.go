@@ -14,11 +14,16 @@ import (
 	"context"
 )
 
-// MessageData holds data of a broadcasted message.
-type MessageData = []byte
+// Message is message to be reliably broadcasted.
+type Message struct {
+	// ID holds MessageID of the Message.
+	ID MessageID
+	// Data holds arbitrary bytes data of the message.
+	Data []byte
+}
 
 // MessageID contains metadata that uniquely identifies a broadcasted message. It specifies
-// a minimally possible interface all the messages should conform to in order to be secured.
+// a minimally required interface all messages should conform to in order to be securely broadcasted.
 type MessageID interface {
 	// Round returns the monotonically increasing round of the broadcasted message.
 	Round() uint64
@@ -42,16 +47,16 @@ type MessageID interface {
 // Commitment maintains a set of signatures/acknowledgements from a quorum certifying validity
 // of an arbitrary broadcasted message. Validity rules are not defined by Commitment and are an external concern.
 type Commitment interface {
-	// ID returns MessageID that Commitment attests to.
-	ID() MessageID
-	// Data returns committed MessageData.
-	Data() MessageData
+	// Message returns Message that Commitment attests to.
+	Message() Message
 	// Signatures provides list of all the signatures in the Commitment.
 	Signatures() []Signature
 	// AddSignature appends signature of a particular signer to the Commitment.
 	// Signature is expected to be verified beforehand.
 	// Reports true if enough signatures were collected.
 	AddSignature(Signature) (bool, error)
+	// Quorum back-references QuorumCommitment the Commitment is attached to.
+	Quorum() QuorumCommitment
 }
 
 // QuorumCommitment is a set data Commitments(or certificates) by a quorum. It accumulates data
@@ -66,7 +71,7 @@ type QuorumCommitment interface {
 	// It must verify:
 	//  * Hash corresponds to MessageData // TODO: Consider hash check to be done by Broadcaster through hash.Hash
 	//  * Validity of the Signer
-	Add(MessageID, MessageData) error
+	Add(Message) error
 	// Get retrieves particular Commitment by the MessageID of the committed MessageData.
 	Get(MessageID) (Commitment, bool)
 	// Delete deletes Commitment by the MessageID of the committed MessageData.
@@ -78,8 +83,8 @@ type QuorumCommitment interface {
 	Finalize(context.Context) error
 }
 
-// Broadcaster reliably broadcasts and commits the given MessageData. It delivers and verifies Messages
-// broadcasted by other quorum participants and accumulates them into QuorumCommitment until its
+// Broadcaster reliably broadcasts, delivers and commits over messages. It verifies Messages
+// delivered from other quorum participants and accumulates them into QuorumCommitment until its
 // finalized.
 //
 // Broadcaster defines interface for asynchronous byzantine reliable quorum broadcast.
@@ -92,20 +97,30 @@ type QuorumCommitment interface {
 //
 // It signs over broadcasted MessageIDs automatically after verifying them using Signer.
 type Broadcaster interface {
-	// Broadcast broadcasts given MessageData and awaits for MessageData and Signatures from other quorum
-	// participants until QuorumCommitment is finalized.
-	Broadcast(context.Context, MessageID, MessageData, QuorumCommitment) error
+	// Broadcast broadcasts and delivers messages from quorum participants and signatures over them
+	// until QuorumCommitment is finalized.
+	Broadcast(context.Context, Message, QuorumCommitment) error
 }
 
 // Verifier performs application specific message stateful verification.
 // It used by Broadcaster during broadcasting rounds.
 type Verifier interface {
-	// Verify executes verification of the MessageID and MessageData.
-	Verify(context.Context, MessageID, MessageData) error
+	// Verify executes verification of every Message delivered to QuorumCommitment
+	// within a broadcasting round.
+	// Message is guaranteed to be valid by the rules in QuorumCommitment.
+	Verify(context.Context, Message) error
+}
+
+// NetworkID identifies a particular network of nodes.
+type NetworkID string
+
+// String returns string representation of NetworkID.
+func (nid NetworkID) String() string {
+	return string(nid)
 }
 
 // Orchestrator orchestrates multiple Broadcaster instances.
 type Orchestrator interface {
 	// NewBroadcaster instantiates a new Broadcaster.
-	NewBroadcaster(Signer, Verifier) (Broadcaster, error)
+	NewBroadcaster(NetworkID, Signer, Verifier) (Broadcaster, error)
 }
