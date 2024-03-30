@@ -12,6 +12,7 @@ package rebro
 
 import (
 	"context"
+	"hash"
 )
 
 // Message is message to be reliably broadcasted.
@@ -67,10 +68,8 @@ type Commitment interface {
 // It expects arbitrary number of new Commitments to be added until finalization is triggered.
 // The finalization conditions and quorums are implementation specific.
 type QuorumCommitment interface {
-	// Add constructs new Commitment from given the given message and adds it to the set.
-	// It must verify:
-	//  * Hash corresponds to MessageData // TODO: Consider hash check to be done by Broadcaster through hash.Hash
-	//  * Validity of the Signer
+	// Add constructs new Commitment from given the given message and adds it to the set
+	// performing necessary verification.
 	Add(Message) error
 	// Get retrieves particular Commitment by the MessageID of the committed MessageData.
 	Get(MessageID) (Commitment, bool)
@@ -122,5 +121,5 @@ func (nid NetworkID) String() string {
 // Orchestrator orchestrates multiple Broadcaster instances.
 type Orchestrator interface {
 	// NewBroadcaster instantiates a new Broadcaster.
-	NewBroadcaster(NetworkID, Signer, Verifier) (Broadcaster, error)
+	NewBroadcaster(NetworkID, Signer, Verifier, func() hash.Hash) (Broadcaster, error)
 }
