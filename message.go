@@ -2,7 +2,6 @@ package rebro
 
 import (
 	"fmt"
-	"hash"
 
 	"capnproto.org/go/capnp/v3"
 
@@ -17,12 +16,6 @@ type Message struct {
 	Data []byte
 }
 
-// NewMessage creates a message for the reliable broadcast from the given input data.
-func NewMessage(round uint64, data, signer []byte, hasher func() hash.Hash) *Message {
-	id := newMessageID(round, signer, hasher().Sum(data))
-	return &Message{Data: data, ID: id}
-}
-
 // messageID implements `MessageID` interface and contains metadata for the underlying data.
 type messageID struct {
 	// round holds the number corresponding to a specific iteration to which data belongs.
@@ -33,7 +26,7 @@ type messageID struct {
 	hash []byte
 }
 
-func newMessageID(round uint64, signer []byte, hash []byte) *messageID {
+func NewMessageID(round uint64, signer []byte, hash []byte) *messageID {
 	return &messageID{
 		round:  round,
 		signer: signer,
