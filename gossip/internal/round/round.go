@@ -29,17 +29,21 @@ type Round struct {
 	stateOpCh chan *stateOp
 	// maintains subscriptions for commitments by their ids
 	getOpSubs map[string]map[*stateOp]struct{}
-
+	// finalCh gets closed when the quorum commitment has been finalized to notify listeners
+	finalCh chan struct{}
 	// signalling for graceful shutdown
 	closeCh, closedCh chan struct{}
 }
 
 // NewRound instantiates Round state machine of QuorumCommitment.
+// This passes ownership of the QuorumCommitment fully to Round,
+// and the commitment must not be used for writes until Round has been stopped.
 func NewRound(quorum rebro.QuorumCommitment) *Round {
 	r := &Round{
 		quorum:    quorum,
 		stateOpCh: make(chan *stateOp, stateOperationsChannelSize),
 		getOpSubs: make(map[string]map[*stateOp]struct{}),
+		finalCh:   make(chan struct{}),
 		closeCh:   make(chan struct{}),
 		closedCh:  make(chan struct{}),
 	}
@@ -59,6 +63,16 @@ func (r *Round) Stop(ctx context.Context) error {
 	close(r.closeCh)
 	select {
 	case <-r.closedCh:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// Finalize awaits finalization of the Round's QuorumCommitment.
+func (r *Round) Finalize(ctx context.Context) error {
+	select {
+	case <-r.finalCh:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -188,12 +202,25 @@ func (r *Round) stateAddSign(op *stateOp) {
 		return
 	}
 
-	_, err := comm.AddSignature(*op.sig)
-	if !ok {
+	fin, err := comm.AddSignature(*op.sig)
+	if err != nil {
 		op.SetError(err)
 		return
 	}
+	// check if the commitment is complete
+	if !fin {
+		op.SetError(nil)
+		return
+	}
+	// check if the quorum has finalized
+	ok, err = r.quorum.Finalize()
+	if err != nil {
+		op.SetError(fmt.Errorf("finalizing quorum commitment: %w", err))
+		return
+	}
+	// ok, it's final, notify everyone
 	op.SetError(nil)
+	close(r.finalCh)
 }
 
 // execOp submits operation for execution by stateLoop and awaits for its completion

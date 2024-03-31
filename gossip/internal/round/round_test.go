@@ -13,7 +13,9 @@ import (
 )
 
 func TestRound(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
 	quorum := newQuorum()
 	r := NewRound(quorum)
 	id := &messageId{id: "msgid"}
@@ -43,7 +45,9 @@ func TestRound(t *testing.T) {
 }
 
 func TestRoundSubscription(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
 	quorum := newQuorum()
 	r := NewRound(quorum)
 	id := &messageId{id: "msgid"}
@@ -83,7 +87,9 @@ func TestRoundSubscription(t *testing.T) {
 }
 
 func TestRoundGracefulShutdown(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
 	quorum := newQuorum()
 	r := NewRound(quorum)
 
@@ -103,7 +109,9 @@ func TestRoundGracefulShutdown(t *testing.T) {
 }
 
 func TestRoundConcurrentAccess(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
 	quorum := newQuorum()
 	r := NewRound(quorum)
 
@@ -156,6 +164,35 @@ func TestRoundConcurrentAccess(t *testing.T) {
 	assert.Len(t, r.getOpSubs, 0)
 }
 
+func TestRoundFinalize(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	quorum := newQuorum()
+	r := NewRound(quorum)
+
+	go func() {
+		id := &messageId{id: "msgid"}
+		err := r.AddCommitment(ctx, rebro.Message{ID: id})
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		err = r.AddSignature(ctx, id, rebro.Signature{})
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}()
+
+	err := r.Finalize(ctx)
+	assert.NoError(t, err)
+	ok, err := quorum.Finalize()
+	assert.NoError(t, err)
+	assert.True(t, ok)
+}
+
 type messageId struct {
 	round uint64
 	id    string
@@ -201,11 +238,6 @@ func newQuorum() *quorum {
 	}
 }
 
-func (q *quorum) Round() uint64 {
-	// TODO implement me
-	panic("implement me")
-}
-
 func (q *quorum) Add(msg rebro.Message) error {
 	q.comms[msg.ID.String()] = &commitment{
 		q:   q,
@@ -234,9 +266,8 @@ func (q *quorum) List() []rebro.Commitment {
 	return list
 }
 
-func (q *quorum) Finalize(ctx context.Context) error {
-	// TODO implement me
-	panic("implement me")
+func (q *quorum) Finalize() (bool, error) {
+	return len(q.comms) == 1, nil
 }
 
 type commitment struct {
@@ -255,7 +286,7 @@ func (c *commitment) Signatures() []rebro.Signature {
 
 func (c *commitment) AddSignature(sig rebro.Signature) (bool, error) {
 	c.sigs = append(c.sigs, sig)
-	return false, nil
+	return len(c.sigs) == 1, nil
 }
 
 func (c *commitment) Quorum() rebro.QuorumCommitment {

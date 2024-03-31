@@ -54,7 +54,7 @@ type Commitment interface {
 	Signatures() []Signature
 	// AddSignature appends signature of a particular signer to the Commitment.
 	// Signature is expected to be verified beforehand.
-	// Reports true if enough signatures were collected.
+	// Reports true if enough signatures were collected for complete Commitment.
 	AddSignature(Signature) (bool, error)
 	// Quorum back-references QuorumCommitment the Commitment is attached to.
 	Quorum() QuorumCommitment
@@ -77,9 +77,11 @@ type QuorumCommitment interface {
 	Delete(MessageID) bool
 	// List provides all the Commitments in the QuorumCommitment.
 	List() []Commitment
-	// Finalize awaits finalization condition of the QuorumCommitment.
-	// The finalization condition are defined by the implementation.
-	Finalize(context.Context) error
+	// Finalize attempts to finalize the QuorumCommitment.
+	// It reports whether the finalization conditions were met.
+	// The finalization conditions are defined by the implementation.
+	// It may additionally perform expensive computation, like signature aggregation.
+	Finalize() (bool, error)
 }
 
 // Broadcaster reliably broadcasts, delivers and commits over messages. It verifies Messages
@@ -95,6 +97,7 @@ type QuorumCommitment interface {
 // (leader-based or mesh-based) by decoupling commitment data structure.
 //
 // It signs over broadcasted MessageIDs automatically after verifying them using Signer.
+// TODO: Explain rules around rounds
 type Broadcaster interface {
 	// Broadcast broadcasts and delivers messages from quorum participants and signatures over them
 	// until QuorumCommitment is finalized.
