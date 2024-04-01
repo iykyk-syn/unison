@@ -17,7 +17,7 @@ func TestRound(t *testing.T) {
 	defer cancel()
 
 	quorum := newQuorum()
-	r := NewRound(quorum)
+	r := NewRound(0, quorum)
 	id := &messageId{id: "msgid"}
 
 	// check all the basic crud operations work
@@ -49,7 +49,7 @@ func TestRoundSubscription(t *testing.T) {
 	defer cancel()
 
 	quorum := newQuorum()
-	r := NewRound(quorum)
+	r := NewRound(0, quorum)
 	id := &messageId{id: "msgid"}
 
 	// subscribe for commitment
@@ -91,7 +91,7 @@ func TestRoundGracefulShutdown(t *testing.T) {
 	defer cancel()
 
 	quorum := newQuorum()
-	r := NewRound(quorum)
+	r := NewRound(0, quorum)
 
 	for i := 0; i < 10; i++ {
 		err := r.execOpAsync(ctx, &stateOp{
@@ -113,7 +113,7 @@ func TestRoundConcurrentAccess(t *testing.T) {
 	defer cancel()
 
 	quorum := newQuorum()
-	r := NewRound(quorum)
+	r := NewRound(0, quorum)
 
 	wg := errgroup.Group{}
 	for i := 0; i < 100; i++ {
@@ -169,7 +169,7 @@ func TestRoundFinalize(t *testing.T) {
 	defer cancel()
 
 	quorum := newQuorum()
-	r := NewRound(quorum)
+	r := NewRound(0, quorum)
 
 	go func() {
 		id := &messageId{id: "msgid"}

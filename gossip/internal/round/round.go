@@ -22,6 +22,7 @@ var errClosedRound = errors.New("closed round access")
 // Round is not concerned of validity of any given input and solely acting as a state machine of
 // the broadcasting round.
 type Round struct {
+	roundNum uint64
 	// the actual state of the Round
 	quorum rebro.QuorumCommitment
 
@@ -38,8 +39,9 @@ type Round struct {
 // NewRound instantiates Round state machine of QuorumCommitment.
 // This passes ownership of the QuorumCommitment fully to Round,
 // and the commitment must not be used for writes until Round has been stopped.
-func NewRound(quorum rebro.QuorumCommitment) *Round {
+func NewRound(roundNum uint64, quorum rebro.QuorumCommitment) *Round {
 	r := &Round{
+		roundNum:  roundNum,
 		quorum:    quorum,
 		stateOpCh: make(chan *stateOp, stateOperationsChannelSize),
 		getOpSubs: make(map[string]map[*stateOp]struct{}),
@@ -77,6 +79,11 @@ func (r *Round) Finalize(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// RoundNumber provides number of the Round.
+func (r *Round) RoundNumber() uint64 {
+	return r.roundNum
 }
 
 // AddCommitment add the given message to the Round forming a new commitment.
@@ -219,8 +226,12 @@ func (r *Round) stateAddSign(op *stateOp) {
 		return
 	}
 	// ok, it's final, notify everyone
+	select {
+	case <-r.finalCh:
+	default:
+		close(r.finalCh)
+	}
 	op.SetError(nil)
-	close(r.finalCh)
 }
 
 // execOp submits operation for execution by stateLoop and awaits for its completion
