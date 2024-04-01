@@ -3,6 +3,7 @@ package gossip
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/1ykyk/rebro"
@@ -10,6 +11,11 @@ import (
 )
 
 func (bro *Broadcaster) processGossip(ctx context.Context, gsp gossipmsg.Gossip) error {
+	// TODO: DOS protection idea:
+	//  * Ensure only N processGossip routines can exist
+	//  * Cancel the oldest routine, if a new one does not fit
+	//  * Ensure there is a timeout which routine
+
 	switch gsp.Which() {
 	case gossipmsg.Gossip_Which_data:
 		return bro.processData(ctx, gsp)
@@ -41,34 +47,31 @@ func (bro *Broadcaster) processData(ctx context.Context, gsp gossipmsg.Gossip) e
 		return err
 	}
 
-	hash := bro.hash()
-	hash.Write(data)
-
-	if !bytes.Equal(hash.Sum(nil), msg.ID.Hash()) {
-		return fmt.Errorf("invalid message hash")
-	}
-
-	// TODO: Must have a timeout on it. If not found in time,
-	//  it might be either malicious or stale message. The allocated resources(routine and memory)
-	//  will be cleaned up by GC. There must a limit for the amount of awaiting getCommitments
-	qcomm, err := bro.findQuorumCommitment(ctx, id.Round())
+	hash, err := bro.hasher.Hash(msg)
 	if err != nil {
 		return err
 	}
 
+	if !bytes.Equal(hash, msg.ID.Hash()) {
+		return fmt.Errorf("inconsistent message hash")
+	}
+
+	r, err := bro.rounds.GetRound(ctx, id.Round())
+	if err != nil {
+		return err
+	}
 	// add to quorum and prepare the commitment
-	err = qcomm.Add(msg)
+	err = r.AddCommitment(ctx, msg)
 	if err != nil {
 		return err
 	}
-
-	// Todo: unblock all the waiters
 
 	if err = bro.verifier.Verify(ctx, msg); err != nil {
 		// it means something is wrong with the message and thus its commitment,
 		// so delete it
-		ok := qcomm.Delete(msg.ID)
-		if !ok {
+		deleteErr := r.DeleteCommitment(ctx, id)
+		if err != nil {
+			err = errors.Join(err, deleteErr)
 			// TODO Log
 		}
 		return err
@@ -113,14 +116,14 @@ func (bro *Broadcaster) processSignature(ctx context.Context, gsp gossipmsg.Goss
 		return err
 	}
 
-	qcomm, err := bro.findQuorumCommitment(ctx, id.Round())
+	r, err := bro.rounds.GetRound(ctx, id.Round())
 	if err != nil {
 		return err
 	}
 
-	comm, ok := qcomm.Get(id)
-	if !ok {
-		// TODO: block and wait until commitment
+	comm, err := r.GetCommitment(ctx, id)
+	if err != nil {
+		return err
 	}
 
 	signatureData, err := gsp.Signature().Signature()
@@ -148,8 +151,4 @@ func (bro *Broadcaster) processSignature(ctx context.Context, gsp gossipmsg.Goss
 	}
 
 	return nil
-}
-
-func (bro *Broadcaster) findQuorumCommitment(ctx context.Context, round uint64) (rebro.QuorumCommitment, error) {
-	return nil, nil
 }

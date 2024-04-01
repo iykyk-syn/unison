@@ -3,92 +3,106 @@ package gossip
 import (
 	"context"
 	"errors"
-	"hash"
 
 	"capnproto.org/go/capnp/v3"
 	"github.com/1ykyk/rebro"
 	"github.com/1ykyk/rebro/gossip/gossipmsg"
+	"github.com/1ykyk/rebro/gossip/internal/round"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
+// TODO: Pubsub ideas
+// * Autosubscribe if validator is registered
+// * sync.Pool messages for reuse
+// * Populate Message.LocalData when publishing messages
+
 // TODO:
-//  * Pubsubbing for quorum commitment
 //  * Add logging
 //  * Add metrics
 
 type Broadcaster struct {
 	networkID rebro.NetworkID
 
+	rounds *round.Manager
 	pubsub *pubsub.PubSub
 	topic  *pubsub.Topic
 	sub    *pubsub.Subscription
 
 	signer   rebro.Signer
 	verifier rebro.Verifier
-	hash     func() hash.Hash
+	hasher   rebro.Hasher
 }
 
-// NewBroadcaster instantiates a new gossip Broadcaster.
-//
-// It requires Signer to signMessage/produce certificates automatically.
-func NewBroadcaster(networkID rebro.NetworkID, singer rebro.Signer, verifier rebro.Verifier, hash func() hash.Hash, ps *pubsub.PubSub) (*Broadcaster, error) {
+// NewBroadcaster instantiates a new gossiping Broadcaster.
+func NewBroadcaster(networkID rebro.NetworkID, singer rebro.Signer, verifier rebro.Verifier, hasher rebro.Hasher, ps *pubsub.PubSub) *Broadcaster {
+	return &Broadcaster{
+		networkID: networkID,
+		rounds:    round.NewManager(),
+		pubsub:    ps,
+		signer:    singer,
+		verifier:  verifier,
+		hasher:    hasher,
+	}
+}
+
+func (bro *Broadcaster) Start() error {
 	// TODO(@Wondartan): versioning for topic
-	topic, err := ps.Join(networkID.String())
+	topic, err := bro.pubsub.Join(bro.networkID.String())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// pubsub forces us to create at least one subscription
-	sub, err := topic.Subscribe()
+	bro.sub, err = topic.Subscribe()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	go func() {
 		for {
-			_, err := sub.Next(context.Background())
+			_, err := bro.sub.Next(context.Background())
 			if err != nil {
 				return
 			}
 		}
 	}()
 
-	bro := &Broadcaster{
-		networkID: networkID,
-		pubsub:    ps,
-		topic:     topic,
-		signer:    singer,
-		verifier:  verifier,
-		hash:      hash,
-	}
-
-	err = ps.RegisterTopicValidator(networkID.String(), bro.deliverGossip)
+	err = bro.pubsub.RegisterTopicValidator(bro.networkID.String(), bro.deliverGossip)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return bro, nil
+	return nil
 }
 
-func (bro *Broadcaster) Close() (err error) {
+func (bro *Broadcaster) Stop(ctx context.Context) (err error) {
 	bro.sub.Cancel()
-	err = errors.Join(bro.topic.Close())
-	err = errors.Join(bro.pubsub.UnregisterTopicValidator(bro.networkID.String()))
+	err = errors.Join(err, bro.topic.Close())
+	err = errors.Join(err, bro.pubsub.UnregisterTopicValidator(bro.networkID.String()))
+	err = errors.Join(err, bro.rounds.Stop(ctx))
 	return err
 }
 
 func (bro *Broadcaster) Broadcast(ctx context.Context, msg rebro.Message, qcomm rebro.QuorumCommitment) error {
-	err := bro.broadcastGossip(ctx, func(message gossipmsg.Gossip) error {
+	r, err := bro.rounds.StartRound(msg.ID.Round(), qcomm)
+	if err != nil {
+		return err
+	}
+
+	err = bro.broadcastGossip(ctx, func(message gossipmsg.Gossip) error {
 		canonicalID, err := msg.ID.MarshalBinary()
 		if err != nil {
 			return err
 		}
+
 		if err = message.SetId(canonicalID); err != nil {
 			return err
 		}
+
 		if err = message.Data().SetData(msg.Data); err != nil {
 			return err
 		}
+
 		message.SetData()
 		return nil
 	})
@@ -96,11 +110,12 @@ func (bro *Broadcaster) Broadcast(ctx context.Context, msg rebro.Message, qcomm 
 		return err
 	}
 
-	if err := qcomm.Finalize(ctx); err != nil {
+	err = r.Finalize(ctx)
+	if err != nil {
 		return err
 	}
 
-	return nil
+	return bro.rounds.StopRound(ctx, msg.ID.Round())
 }
 
 // broadcastGossip prepares and publishes a gossip to the network.
@@ -134,7 +149,14 @@ func (bro *Broadcaster) broadcastGossip(ctx context.Context, setter func(gossipm
 
 // deliverGossip delivers a PubSub gossip and reports its validity status
 func (bro *Broadcaster) deliverGossip(ctx context.Context, _ peer.ID, gossip *pubsub.Message) pubsub.ValidationResult {
-	// TODO: Catch panics
+	defer func() {
+		// recover from potential panics caused by network gossips
+		err := recover()
+		if err != nil {
+			// todo log
+		}
+	}()
+
 	msgMsg, err := capnp.Unmarshal(gossip.Data)
 	if err != nil {
 		return pubsub.ValidationReject

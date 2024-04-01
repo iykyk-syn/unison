@@ -12,7 +12,6 @@ package rebro
 
 import (
 	"context"
-	"hash"
 )
 
 // Message is message to be reliably broadcasted.
@@ -113,6 +112,11 @@ type Verifier interface {
 	Verify(context.Context, Message) error
 }
 
+// Hasher hashes Messages to cross-check their validity with MessageID.Hash
+type Hasher interface {
+	Hash(Message) ([]byte, error)
+}
+
 // NetworkID identifies a particular network of nodes.
 type NetworkID string
 
@@ -124,5 +128,5 @@ func (nid NetworkID) String() string {
 // Orchestrator orchestrates multiple Broadcaster instances.
 type Orchestrator interface {
 	// NewBroadcaster instantiates a new Broadcaster.
-	NewBroadcaster(NetworkID, Signer, Verifier, func() hash.Hash) (Broadcaster, error)
+	NewBroadcaster(NetworkID, Signer, Verifier, Hasher) (Broadcaster, error)
 }
