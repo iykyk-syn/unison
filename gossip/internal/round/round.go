@@ -18,7 +18,7 @@ const (
 var errClosedRound = errors.New("closed round access")
 
 // Round maintains state of broadcasting rounds and local pubsub system for commitments.
-// It guards QuorumCommitment from concurrent access ensuring thread-safety.
+// It guards [rebro.QuorumCommitment] from concurrent access ensuring thread-safety.
 // Round is not concerned of validity of any given input and solely acting as a state machine of
 // the broadcasting round.
 type Round struct {
@@ -36,9 +36,9 @@ type Round struct {
 	closeCh, closedCh chan struct{}
 }
 
-// NewRound instantiates Round state machine of QuorumCommitment.
-// This passes ownership of the QuorumCommitment fully to Round,
-// and the commitment must not be used for writes until Round has been stopped.
+// NewRound instantiates a new [Round] state machine wrapping [rebro.QuorumCommitment].
+// This passes full ownership of the [rebro.QuorumCommitment] fully to [Round],
+// thus it must not be used for writes until [Round] has been stopped.
 func NewRound(roundNum uint64, quorum rebro.QuorumCommitment) *Round {
 	r := &Round{
 		roundNum:  roundNum,
@@ -53,7 +53,7 @@ func NewRound(roundNum uint64, quorum rebro.QuorumCommitment) *Round {
 	return r
 }
 
-// Stop gracefully stops the Round allowing early termination through context.
+// Stop gracefully stops the [Round] allowing early termination through context.
 // It ensures all the in-progress state operations are completed before termination.
 func (r *Round) Stop(ctx context.Context) error {
 	select {
@@ -71,7 +71,7 @@ func (r *Round) Stop(ctx context.Context) error {
 	}
 }
 
-// Finalize awaits finalization of the Round's QuorumCommitment.
+// Finalize awaits finalization of the [Round]'s [rebro.QuorumCommitment].
 func (r *Round) Finalize(ctx context.Context) error {
 	select {
 	case <-r.finalCh:
@@ -81,12 +81,13 @@ func (r *Round) Finalize(ctx context.Context) error {
 	}
 }
 
-// RoundNumber provides number of the Round.
+// RoundNumber provides number of the [Round].
 func (r *Round) RoundNumber() uint64 {
 	return r.roundNum
 }
 
-// AddCommitment add the given message to the Round forming a new commitment.
+// AddCommitment add the given message to the Round forming a new [rebro.Commitment] on
+// [rebro.QuorumCommitment].
 func (r *Round) AddCommitment(ctx context.Context, msg rebro.Message) error {
 	op := newStateOp(addOp)
 	defer op.Free()
@@ -123,7 +124,7 @@ func (r *Round) stateAdd(op *stateOp) {
 	op.SetError(nil)
 }
 
-// GetCommitment gets commitment from the Round by the associated Message's ID.
+// GetCommitment gets commitment from the [Round] by the associated [rebro.MessageID].
 func (r *Round) GetCommitment(ctx context.Context, id rebro.MessageID) (rebro.Commitment, error) {
 	op := newStateOp(getOp)
 	defer op.Free()
@@ -174,7 +175,7 @@ func (r *Round) stateGet(op *stateOp) {
 	return
 }
 
-// DeleteCommitment deletes commitment from the Round by the associated Message's ID.
+// DeleteCommitment deletes commitment from the [Round] by the associated [rebro.MessageID].
 func (r *Round) DeleteCommitment(ctx context.Context, id rebro.MessageID) error {
 	op := newStateOp(deleteOp)
 	defer op.Free()
@@ -192,7 +193,7 @@ func (r *Round) stateDelete(op *stateOp) {
 	op.SetError(nil)
 }
 
-// AddSignature appends a Signature to one of the Round's Commitments.
+// AddSignature appends a Signature to one of the [Round]'s Commitments.
 func (r *Round) AddSignature(ctx context.Context, id rebro.MessageID, sig rebro.Signature) error {
 	op := newStateOp(addSignOp)
 	defer op.Free()
@@ -202,6 +203,8 @@ func (r *Round) AddSignature(ctx context.Context, id rebro.MessageID, sig rebro.
 	return r.execOp(ctx, op)
 }
 
+// stateAddSign adds signature to the quorum and attempts to finalize it. If success, it notifies
+// all the [Round.Finalize] subscribers.
 func (r *Round) stateAddSign(op *stateOp) {
 	comm, ok := r.quorum.Get(op.id)
 	if !ok {
@@ -234,9 +237,9 @@ func (r *Round) stateAddSign(op *stateOp) {
 	op.SetError(nil)
 }
 
-// execOp submits operation for execution by stateLoop and awaits for its completion
+// execOp submits operation for execution by [stateLoop] and awaits for its completion
 // It permits submission until closedCh is closed or context is cancelled, even after closing is
-// triggered. This allows some "last-minute" operations to "squeeze in" before Round fully finishes.
+// triggered. This allows some "last-minute" operations to "squeeze in" before [Round] fully finishes.
 func (r *Round) execOp(ctx context.Context, op *stateOp) error {
 	select {
 	case r.stateOpCh <- op:

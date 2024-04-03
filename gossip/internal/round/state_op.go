@@ -24,7 +24,7 @@ const (
 	addSignOp
 )
 
-// stateOp defines operations on the Round state machine
+// stateOp defines operations on the [Round] state machine
 type stateOp struct {
 	kind   stateOpKind
 	doneCh chan any
@@ -57,7 +57,7 @@ func (op *stateOp) Free() {
 	stateOpPool.Put(op)
 }
 
-// SetCommitment sets commitment result on the operation
+// SetCommitment sets [rebro.Commitment] result on the operation
 // and notifies that operation has been done.
 func (op *stateOp) SetCommitment(comm rebro.Commitment) {
 	op.comm = comm

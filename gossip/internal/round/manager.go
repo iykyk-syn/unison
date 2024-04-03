@@ -8,12 +8,12 @@ import (
 	"github.com/1ykyk/rebro"
 )
 
-// errElapsedRound is thrown when a requested height was already provided to Manager.
+// errElapsedRound is thrown when a requested height was already provided to [Manager].
 var errElapsedRound = errors.New("elapsed round")
 
-// Manager manages lifecycles for new Rounds and keeps references to them.
-// It also provides a simple subscription mechanism for GetRound operations which are fulfilled
-// with StartRound.
+// Manager registers and manages lifecycles for every new [Round].
+// It also provides a simple subscription mechanism in [Manager.GetRound] operations which are fulfilled
+// with [Manager.StartRound].
 type Manager struct {
 	roundsMu    sync.Mutex
 	rounds      map[uint64]*Round
@@ -21,7 +21,7 @@ type Manager struct {
 	latestRound uint64
 }
 
-// NewManager instantiates a new Manager.
+// NewManager instantiates a new [Manager].
 func NewManager() *Manager {
 	return &Manager{
 		rounds:    make(map[uint64]*Round),
@@ -29,7 +29,8 @@ func NewManager() *Manager {
 	}
 }
 
-// Stop waits until all the in-progress rounds are Finished and Stopped and then terminates.
+// Stop performs [Round.Finalize] and [Round.Stop] on all the registered instances of [Round] and
+// then terminates. This ensures we retain in-progress [Round] state.
 func (rm *Manager) Stop(ctx context.Context) error {
 	// lock manager fully and prevent any other actions Round while we stop
 	rm.roundsMu.Lock()
@@ -50,8 +51,8 @@ func (rm *Manager) Stop(ctx context.Context) error {
 	return nil
 }
 
-// StartRound instantiates and starts a new Round.
-// It adds the Round to the manager, notifying all the Get waiters.
+// StartRound instantiates and starts a new [Round].
+// It adds the [Round] to the [Manager], notifying all the [Manager.GetRound] waiters.
 func (rm *Manager) StartRound(roundNum uint64, qcomm rebro.QuorumCommitment) (*Round, error) {
 	rm.roundsMu.Lock()
 	defer rm.roundsMu.Unlock()
@@ -74,8 +75,8 @@ func (rm *Manager) StartRound(roundNum uint64, qcomm rebro.QuorumCommitment) (*R
 	return r, nil
 }
 
-// StopRound stops Round and deletes it from the manager together with the active subscriptions for it.
-// It does not wait for the Round finalization and that's a caller's concern.
+// StopRound stops [Round] and deletes it from the [Manager] together with the active subscriptions for it.
+// It does not wait for the [Round] finalization and that's a caller's concern.
 func (rm *Manager) StopRound(ctx context.Context, roundNum uint64) error {
 	rm.roundsMu.Lock()
 	if rm.latestRound >= roundNum {
@@ -96,7 +97,7 @@ func (rm *Manager) StopRound(ctx context.Context, roundNum uint64) error {
 	return nil
 }
 
-// GetRound gets Round from local map by the number or subscribes for the Round if not found.
+// GetRound gets [Round] from local map by the number or subscribes for the [Round] to come, if not found.
 func (rm *Manager) GetRound(ctx context.Context, roundNum uint64) (*Round, error) {
 	rm.roundsMu.Lock()
 	r, ok := rm.rounds[roundNum]
