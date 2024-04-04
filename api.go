@@ -23,7 +23,7 @@ type Message struct {
 }
 
 // MessageID contains metadata that uniquely identifies a broadcasted message. It specifies
-// a minimally required interface all messages should conform to in order to be securely broadcasted.
+// a minimally required canonical interface all messages should conform to in order to be securely broadcasted.
 type MessageID interface {
 	// Round returns the monotonically increasing round of the broadcasted message.
 	Round() uint64
@@ -33,16 +33,15 @@ type MessageID interface {
 	Hash() []byte
 	// String returns string representation of the message.
 	String() string
-
-	// New instantiates a new MessageID.
-	// Required for generic marshalling.
-	New() MessageID
 	// MarshalBinary serializes MessageID into series of bytes.
 	// Must return canonical representation of MessageData
 	MarshalBinary() ([]byte, error)
-	// UnmarshalBinary deserializes MessageID from a serias of bytes.
+	// UnmarshalBinary deserializes MessageID from a series of bytes.
 	UnmarshalBinary([]byte) error
 }
+
+// MessageIDDecoder unmarshalls Messages of a particular type.
+type MessageIDDecoder func([]byte) (MessageID, error)
 
 // Commitment maintains a set of signatures/acknowledgements from a quorum certifying validity
 // of an arbitrary broadcasted message. Validity rules are not defined by Commitment and are an external concern.
@@ -128,5 +127,5 @@ func (nid NetworkID) String() string {
 // Orchestrator orchestrates multiple Broadcaster instances.
 type Orchestrator interface {
 	// NewBroadcaster instantiates a new Broadcaster.
-	NewBroadcaster(NetworkID, Signer, Verifier, Hasher) (Broadcaster, error)
+	NewBroadcaster(NetworkID, Signer, Verifier, Hasher, MessageIDDecoder) (Broadcaster, error)
 }

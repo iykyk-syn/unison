@@ -3,6 +3,8 @@ package gossip
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"time"
 
 	"capnproto.org/go/capnp/v3"
 	"github.com/1ykyk/rebro"
@@ -16,6 +18,7 @@ import (
 // * Autosubscribe if validator is registered
 // * sync.Pool messages for reuse
 // * Populate Message.LocalData when publishing messages
+// * Pass Publish context to local validation
 
 // TODO:
 //  * Add logging
@@ -32,10 +35,13 @@ type Broadcaster struct {
 	signer   rebro.Signer
 	verifier rebro.Verifier
 	hasher   rebro.Hasher
+	decoder  rebro.MessageIDDecoder
+
+	log *slog.Logger
 }
 
-// NewBroadcaster instantiates a new gossiping Broadcaster.
-func NewBroadcaster(networkID rebro.NetworkID, singer rebro.Signer, verifier rebro.Verifier, hasher rebro.Hasher, ps *pubsub.PubSub) *Broadcaster {
+// NewBroadcaster instantiates a new gossiping [Broadcaster].
+func NewBroadcaster(networkID rebro.NetworkID, singer rebro.Signer, verifier rebro.Verifier, hasher rebro.Hasher, decoder rebro.MessageIDDecoder, ps *pubsub.PubSub) *Broadcaster {
 	return &Broadcaster{
 		networkID: networkID,
 		rounds:    round.NewManager(),
@@ -43,18 +49,23 @@ func NewBroadcaster(networkID rebro.NetworkID, singer rebro.Signer, verifier reb
 		signer:    singer,
 		verifier:  verifier,
 		hasher:    hasher,
+		decoder:   decoder,
 	}
 }
 
-func (bro *Broadcaster) Start() error {
+func (bro *Broadcaster) Start() (err error) {
+	if bro.log == nil {
+		bro.log = slog.Default()
+	}
+
 	// TODO(@Wondartan): versioning for topic
-	topic, err := bro.pubsub.Join(bro.networkID.String())
+	bro.topic, err = bro.pubsub.Join(bro.networkID.String())
 	if err != nil {
 		return err
 	}
 
 	// pubsub forces us to create at least one subscription
-	bro.sub, err = topic.Subscribe()
+	bro.sub, err = bro.topic.Subscribe()
 	if err != nil {
 		return err
 	}
@@ -67,7 +78,11 @@ func (bro *Broadcaster) Start() error {
 		}
 	}()
 
-	err = bro.pubsub.RegisterTopicValidator(bro.networkID.String(), bro.deliverGossip)
+	err = bro.pubsub.RegisterTopicValidator(
+		bro.networkID.String(),
+		bro.deliverGossip,
+		pubsub.WithValidatorTimeout(time.Second),
+	)
 	if err != nil {
 		return err
 	}
@@ -115,6 +130,7 @@ func (bro *Broadcaster) Broadcast(ctx context.Context, msg rebro.Message, qcomm 
 		return err
 	}
 
+	// TODO: Delayed stopped to collect more signatures
 	return bro.rounds.StopRound(ctx, msg.ID.Round())
 }
 
@@ -153,22 +169,25 @@ func (bro *Broadcaster) deliverGossip(ctx context.Context, _ peer.ID, gossip *pu
 		// recover from potential panics caused by network gossips
 		err := recover()
 		if err != nil {
-			// todo log
+			bro.log.ErrorContext(ctx, "deliver gossip panic", "err", err)
 		}
 	}()
 
 	msgMsg, err := capnp.Unmarshal(gossip.Data)
 	if err != nil {
+		bro.log.ErrorContext(ctx, "unmarshalling gossip data", "err", err)
 		return pubsub.ValidationReject
 	}
 
 	msg, err := gossipmsg.ReadRootGossip(msgMsg)
 	if err != nil {
+		bro.log.ErrorContext(ctx, "unmarshalling gossip data", "err", err)
 		return pubsub.ValidationReject
 	}
 
 	err = bro.processGossip(ctx, msg)
 	if err != nil {
+		bro.log.ErrorContext(ctx, "processing gossip", "err", err)
 		return pubsub.ValidationReject
 	}
 

@@ -11,6 +11,8 @@ type Signature struct {
 // Signer encapsulates and separates asymmetric cryptographic schema out of Broadcasting protocol
 // logic together with private key management.
 type Signer interface {
+	// ID returns Signer identity like public key
+	ID() []byte
 	// Sign produces a cryptographic Signature over the given data with internally managed identity.
 	Sign([]byte) (Signature, error)
 	// Verify performs cryptographic Signature verification of the given data.
