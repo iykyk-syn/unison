@@ -228,6 +228,10 @@ func (r *Round) stateAddSign(op *stateOp) {
 		op.SetError(fmt.Errorf("finalizing quorum commitment: %w", err))
 		return
 	}
+	if !ok {
+		op.SetError(nil)
+		return
+	}
 	// ok, it's final, notify everyone
 	select {
 	case <-r.finalCh:

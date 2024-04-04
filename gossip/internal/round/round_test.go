@@ -168,11 +168,11 @@ func TestRoundFinalize(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
+	id := &messageId{id: "msgid"}
 	quorum := newQuorum()
 	r := NewRound(0, quorum)
 
 	go func() {
-		id := &messageId{id: "msgid"}
 		err := r.AddCommitment(ctx, rebro.Message{ID: id})
 		if err != nil {
 			t.Error(err)
@@ -186,8 +186,22 @@ func TestRoundFinalize(t *testing.T) {
 		}
 	}()
 
-	err := r.Finalize(ctx)
+	// must not finalize
+	finCtx, cancel := context.WithTimeout(context.Background(), time.Millisecond*10)
+	err := r.Finalize(finCtx)
+	assert.Error(t, err)
+	cancel()
+
+	// but after one more singature
+	err = r.AddSignature(ctx, id, rebro.Signature{})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	// it should
+	err = r.Finalize(ctx)
 	assert.NoError(t, err)
+
 	ok, err := quorum.Finalize()
 	assert.NoError(t, err)
 	assert.True(t, ok)
