@@ -1,18 +1,8 @@
 package round
 
 import (
-	"sync"
-
 	"github.com/1ykyk/rebro"
 )
-
-// stateOpPool pools allocated stateOps for later reuse
-// this reduce GC pressure
-var stateOpPool = sync.Pool{New: func() any {
-	return &stateOp{
-		doneCh: make(chan any, 1),
-	}
-}}
 
 // defines types of state machine operations
 type stateOpKind uint8
@@ -40,21 +30,7 @@ type stateOp struct {
 }
 
 func newStateOp(kind stateOpKind) *stateOp {
-	op := stateOpPool.Get().(*stateOp)
-	op.kind = kind
-	return op
-}
-
-// Free frees up the op for reuse.
-func (op *stateOp) Free() {
-	// empty all the fields for the next user
-	// but doneCh is reusable
-	op.msg = nil
-	op.id = nil
-	op.sig = nil
-	op.err = nil
-	op.comm = nil
-	stateOpPool.Put(op)
+	return &stateOp{kind: kind, doneCh: make(chan any, 1)}
 }
 
 // SetCommitment sets [rebro.Commitment] result on the operation

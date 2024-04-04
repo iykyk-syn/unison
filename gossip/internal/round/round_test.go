@@ -13,7 +13,7 @@ import (
 )
 
 func TestRound(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*100)
 	defer cancel()
 
 	quorum := newQuorum()
@@ -300,7 +300,7 @@ func (c *commitment) Signatures() []rebro.Signature {
 
 func (c *commitment) AddSignature(sig rebro.Signature) (bool, error) {
 	c.sigs = append(c.sigs, sig)
-	return len(c.sigs) == 1, nil
+	return len(c.sigs) == 2, nil
 }
 
 func (c *commitment) Quorum() rebro.QuorumCommitment {

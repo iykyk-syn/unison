@@ -90,9 +90,8 @@ func (r *Round) RoundNumber() uint64 {
 // [rebro.QuorumCommitment].
 func (r *Round) AddCommitment(ctx context.Context, msg rebro.Message) error {
 	op := newStateOp(addOp)
-	defer op.Free()
-
 	op.msg = &msg
+
 	return r.execOp(ctx, op)
 }
 
@@ -127,9 +126,8 @@ func (r *Round) stateAdd(op *stateOp) {
 // GetCommitment gets commitment from the [Round] by the associated [rebro.MessageID].
 func (r *Round) GetCommitment(ctx context.Context, id rebro.MessageID) (rebro.Commitment, error) {
 	op := newStateOp(getOp)
-	defer op.Free()
-
 	op.id = id
+
 	err := r.execOp(ctx, op)
 	if err == nil || ctx.Err() == nil {
 		return op.comm, err
@@ -178,9 +176,8 @@ func (r *Round) stateGet(op *stateOp) {
 // DeleteCommitment deletes commitment from the [Round] by the associated [rebro.MessageID].
 func (r *Round) DeleteCommitment(ctx context.Context, id rebro.MessageID) error {
 	op := newStateOp(deleteOp)
-	defer op.Free()
-
 	op.id = id
+
 	return r.execOp(ctx, op)
 }
 
@@ -196,10 +193,9 @@ func (r *Round) stateDelete(op *stateOp) {
 // AddSignature appends a Signature to one of the [Round]'s Commitments.
 func (r *Round) AddSignature(ctx context.Context, id rebro.MessageID, sig rebro.Signature) error {
 	op := newStateOp(addSignOp)
-	defer op.Free()
-
 	op.id = id
 	op.sig = &sig
+
 	return r.execOp(ctx, op)
 }
 
