@@ -1,11 +1,11 @@
-package messageId
+package types
 
 import (
 	"fmt"
 
 	"capnproto.org/go/capnp/v3"
 
-	message_id "github.com/1ykyk/rebro/message/capnproto"
+	message_id "github.com/1ykyk/rebro/types/capnproto"
 
 	"github.com/1ykyk/rebro"
 )
