@@ -79,11 +79,11 @@ func (rm *Manager) StartRound(roundNum uint64, qcomm rebro.QuorumCommitment) (*R
 // It does not wait for the [Round] finalization and that's a caller's concern.
 func (rm *Manager) StopRound(ctx context.Context, roundNum uint64) error {
 	rm.roundsMu.Lock()
-	if rm.latestRound >= roundNum {
+	r, ok := rm.rounds[roundNum]
+	rm.roundsMu.Unlock()
+	if !ok {
 		return errElapsedRound
 	}
-	r := rm.rounds[roundNum]
-	rm.roundsMu.Unlock()
 
 	err := r.Stop(ctx)
 	if err != nil {
@@ -104,11 +104,6 @@ func (rm *Manager) GetRound(ctx context.Context, roundNum uint64) (*Round, error
 	if ok {
 		rm.roundsMu.Unlock()
 		return r, nil
-	}
-	// check for elapsed round only after the rounds map were checked.
-	if rm.latestRound >= roundNum {
-		rm.roundsMu.Unlock()
-		return nil, errElapsedRound
 	}
 
 	subs, ok := rm.roundSubs[roundNum]
