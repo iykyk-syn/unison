@@ -39,6 +39,9 @@ func (c *commitment) AddSignature(s rebro.Signature) (bool, error) {
 	if c.msg == nil {
 		return false, errors.New("empty message. nothing to set")
 	}
+	if !bytes.Equal(s.Body, c.msg.ID.Hash()) {
+		return false, errors.New("invalid signature received")
+	}
 
 	found := false
 	for _, v := range c.validatorSet {
@@ -53,6 +56,12 @@ func (c *commitment) AddSignature(s rebro.Signature) (bool, error) {
 
 	c.signLk.Lock()
 	defer c.signLk.Unlock()
+	for _, signature := range c.signatures {
+		if bytes.Equal(signature.Signer, s.Signer) {
+			return false, errors.New("signature was already added to the list")
+		}
+	}
+
 	c.signatures = append(c.signatures, s)
 	return true, nil
 }
