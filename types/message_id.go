@@ -6,8 +6,6 @@ import (
 	"capnproto.org/go/capnp/v3"
 
 	message_id "github.com/1ykyk/rebro/types/capnproto"
-
-	"github.com/1ykyk/rebro"
 )
 
 // messageID implements `MessageID` interface and contains metadata for the underlying data.
@@ -34,10 +32,6 @@ func (m *messageID) Hash() []byte {
 
 func (m *messageID) String() string {
 	return fmt.Sprintf("Hash{%v}", string(m.hash))
-}
-
-func (m *messageID) New() rebro.MessageID {
-	return &messageID{}
 }
 
 func (m *messageID) MarshalBinary() ([]byte, error) {

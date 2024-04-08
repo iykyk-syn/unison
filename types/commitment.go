@@ -3,7 +3,6 @@ package types
 import (
 	"bytes"
 	"errors"
-	"sync"
 
 	"github.com/1ykyk/rebro"
 )
@@ -11,7 +10,6 @@ import (
 type commitment struct {
 	msg *rebro.Message
 
-	signLk     sync.RWMutex
 	signatures []rebro.Signature
 
 	validatorSet [][]byte
@@ -30,8 +28,6 @@ func (c *commitment) Message() *rebro.Message {
 }
 
 func (c *commitment) Signatures() []rebro.Signature {
-	c.signLk.RLock()
-	defer c.signLk.RUnlock()
 	return c.signatures
 }
 
@@ -51,16 +47,19 @@ func (c *commitment) AddSignature(s rebro.Signature) (bool, error) {
 		return false, errors.New("sender is not a part of validator set")
 	}
 
-	c.signLk.Lock()
-	defer c.signLk.Unlock()
 	for _, signature := range c.signatures {
 		if bytes.Equal(signature.Signer, s.Signer) {
-			return false, errors.New("signature was already added to the list")
+			return false, errors.New("duplicate signature from the signer")
 		}
 	}
 
 	c.signatures = append(c.signatures, s)
-	return true, nil
+
+	//TODO: Rework after introducing validator set data structure
+	if len(c.signatures) > len(c.validatorSet)*2/3 {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (c *commitment) Quorum() rebro.QuorumCommitment {
