@@ -1,4 +1,4 @@
-package rebro
+package keys
 
 type PubKey interface {
 	VerifySignature(msg []byte, sig []byte) bool

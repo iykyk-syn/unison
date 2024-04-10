@@ -16,5 +16,7 @@ type Signer interface {
 	// Sign produces a cryptographic Signature over the given data with internally managed identity.
 	Sign([]byte) (Signature, error)
 	// Verify performs cryptographic Signature verification of the given data.
+	// TODO: Probably signer should verify own signature, and we should a have separate function `verify` to validate
+	// the signatures from other users
 	Verify([]byte, Signature) error
 }

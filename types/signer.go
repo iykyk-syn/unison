@@ -4,22 +4,28 @@ import (
 	"errors"
 
 	"github.com/1ykyk/rebro"
-	"github.com/1ykyk/rebro/types/keys/ed25519"
+	"github.com/1ykyk/rebro/types/keys"
 )
 
 type signer struct {
-	privKey rebro.PrivKey
-	pubKey  rebro.PubKey
+	privKey keys.PrivKey
+	pubKey  keys.PubKey
+
+	pubKeyBuilder func([]byte) (keys.PubKey, error)
 }
 
-func NewSigner(privKey rebro.PrivKey, pubKey rebro.PubKey) (rebro.Signer, error) {
+func NewSigner(privKey keys.PrivKey, pubKey keys.PubKey, bytesToPubKeyFn func([]byte) (keys.PubKey, error)) (rebro.Signer, error) {
 	if !privKey.PubKey().Equals(pubKey.Bytes()) {
 		return nil, errors.New("invalid pubKey received")
 	}
+	if bytesToPubKeyFn == nil {
+		return nil, errors.New("empty pubKey builder")
+	}
 
 	return &signer{
-		privKey: privKey,
-		pubKey:  pubKey,
+		privKey:       privKey,
+		pubKey:        pubKey,
+		pubKeyBuilder: bytesToPubKeyFn,
 	}, nil
 }
 
@@ -40,8 +46,12 @@ func (s *signer) Sign(msg []byte) (rebro.Signature, error) {
 }
 
 func (s *signer) Verify(msg []byte, signature rebro.Signature) error {
-	// TODO: should avoid a concrete type here
-	ok := ed25519.PubKey(signature.Signer).VerifySignature(msg, signature.Body)
+	pubK, err := s.pubKeyBuilder(signature.Signer)
+	if err != nil {
+		return nil
+	}
+
+	ok := pubK.VerifySignature(msg, signature.Body)
 	if !ok {
 		return errors.New("signature is invalid")
 	}

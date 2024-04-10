@@ -4,8 +4,9 @@ import (
 	"crypto"
 	"crypto/ed25519"
 	"crypto/rand"
+	"errors"
 
-	"github.com/1ykyk/rebro"
+	"github.com/1ykyk/rebro/types/keys"
 )
 
 const (
@@ -42,7 +43,7 @@ func (privKey PrivateKey) Sign(msg []byte) ([]byte, error) {
 	return ed25519.PrivateKey(privKey).Sign(rand.Reader, msg, crypto.SHA256)
 }
 
-func (privKey PrivateKey) PubKey() rebro.PubKey {
+func (privKey PrivateKey) PubKey() keys.PubKey {
 	public := ed25519.PrivateKey(privKey).Public().(ed25519.PublicKey)
 	key := make(PubKey, ed25519.PublicKeySize)
 	copy(key, public)
@@ -72,4 +73,14 @@ func GenKeys() (PubKey, PrivateKey, error) {
 	copy(private, privK)
 
 	return public, private, nil
+}
+
+func BytesToPubKey(b []byte) (PubKey, error) {
+	if len(b) != ed25519.PublicKeySize {
+		return nil, errors.New("invalid key length")
+	}
+
+	key := make(PubKey, ed25519.PublicKeySize)
+	copy(key, b)
+	return key, nil
 }
