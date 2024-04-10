@@ -8,22 +8,26 @@ import (
 )
 
 type commitment struct {
-	msg *rebro.Message
+	msg rebro.Message
 
 	signatures []rebro.Signature
 
 	validatorSet [][]byte
 }
 
-func NewCommitment(msg *rebro.Message, validatorSet [][]byte) *commitment {
+func NewCommitment(msg rebro.Message, validatorSet [][]byte) (rebro.Commitment, error) {
+	if err := msg.ValidateBasic(); err != nil {
+		return nil, err
+	}
+
 	return &commitment{
 		msg:          msg,
 		signatures:   make([]rebro.Signature, 0, len(validatorSet)),
 		validatorSet: validatorSet,
-	}
+	}, nil
 }
 
-func (c *commitment) Message() *rebro.Message {
+func (c *commitment) Message() rebro.Message {
 	return c.msg
 }
 
@@ -32,10 +36,6 @@ func (c *commitment) Signatures() []rebro.Signature {
 }
 
 func (c *commitment) AddSignature(s rebro.Signature) (bool, error) {
-	if c.msg == nil {
-		return false, errors.New("empty message. nothing to set")
-	}
-
 	found := false
 	for _, v := range c.validatorSet {
 		if bytes.Equal(v, s.Signer) {
@@ -60,8 +60,4 @@ func (c *commitment) AddSignature(s rebro.Signature) (bool, error) {
 		return true, nil
 	}
 	return false, nil
-}
-
-func (c *commitment) Quorum() rebro.QuorumCommitment {
-	return nil
 }
