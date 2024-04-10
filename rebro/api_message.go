@@ -1,11 +1,20 @@
 package rebro
 
+import "errors"
+
 // Message is message to be reliably broadcasted.
 type Message struct {
 	// ID holds MessageID of the Message.
 	ID MessageID
 	// Data holds arbitrary bytes data of the message.
 	Data []byte
+}
+
+func (m *Message) ValidateBasic() error {
+	if len(m.Data) == 0 || m.ID == nil {
+		return errors.New("no data provided for the message")
+	}
+	return m.ID.ValidateBasic()
 }
 
 // MessageID contains metadata that uniquely identifies a broadcasted message. It specifies
@@ -24,6 +33,8 @@ type MessageID interface {
 	MarshalBinary() ([]byte, error)
 	// UnmarshalBinary deserializes MessageID from a series of bytes.
 	UnmarshalBinary([]byte) error
+
+	ValidateBasic() error
 }
 
 // MessageIDDecoder unmarshalls Messages of a particular type.

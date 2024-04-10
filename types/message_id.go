@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 
 	"capnproto.org/go/capnp/v3"
@@ -70,5 +71,18 @@ func (m *messageID) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	m.signer, err = msgID.Signer()
-	return err
+	return m.ValidateBasic()
+}
+
+func (m *messageID) ValidateBasic() error {
+	if m.round == 0 {
+		return errors.New("round was not set")
+	}
+	if len(m.hash) == 0 {
+		return errors.New("empty hash")
+	}
+	if len(m.signer) == 0 {
+		return errors.New("empty signer")
+	}
+	return nil
 }
