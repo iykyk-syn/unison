@@ -1,6 +1,9 @@
 package keys
 
+type Address []byte
+
 type PubKey interface {
+	Address() (Address, error)
 	VerifySignature(msg []byte, sig []byte) bool
 	Bytes() []byte
 	Equals([]byte) bool
