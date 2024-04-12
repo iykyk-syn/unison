@@ -220,6 +220,10 @@ func (m *messageId) UnmarshalBinary(bytes []byte) error {
 	return nil
 }
 
+func (m *messageId) ValidateBasic() error {
+	return nil
+}
+
 func unmarshalMessageID(bytes []byte) (rebro.MessageID, error) {
 	var id messageId
 	return &id, id.UnmarshalBinary(bytes)

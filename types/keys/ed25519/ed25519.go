@@ -10,17 +10,16 @@ import (
 )
 
 const (
-	KeyType       = "ed25519"
-	TruncatedSize = 20
+	KeyType = "ed25519"
 )
 
 type PubKey []byte
 
-func (pubKey PubKey) Address() (keys.Address, error) {
+func (pubKey PubKey) Address() keys.Address {
 	if len(pubKey) != ed25519.PublicKeySize {
-		return nil, errors.New("invalid key length")
+		panic("invalid key length")
 	}
-	return keys.Address(pubKey[:TruncatedSize]), nil
+	return keys.Address(pubKey[:keys.AddressSize])
 }
 
 func (pubKey PubKey) VerifySignature(msg []byte, sig []byte) bool {

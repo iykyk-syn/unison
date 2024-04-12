@@ -2,8 +2,12 @@ package keys
 
 type Address []byte
 
+const (
+	AddressSize = 20
+)
+
 type PubKey interface {
-	Address() (Address, error)
+	Address() Address
 	VerifySignature(msg []byte, sig []byte) bool
 	Bytes() []byte
 	Equals([]byte) bool
