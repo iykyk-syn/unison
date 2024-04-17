@@ -28,7 +28,7 @@ type QuorumCommitment interface {
 	Get(MessageID) (Commitment, bool)
 	// Delete deletes Commitment by the MessageID of the committed MessageData.
 	Delete(MessageID) bool
-	// List provides all the Commitments in the QuorumCommitment.
+	// List provides all the non-completed Commitments in the QuorumCommitment.
 	List() []Commitment
 	// Finalize attempts to finalize the QuorumCommitment.
 	// It reports whether the finalization conditions were met.

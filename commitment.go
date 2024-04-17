@@ -12,9 +12,11 @@ type commitment struct {
 
 	includersSet *Includers
 	totalStake   int64
+
+	complete chan<- string
 }
 
-func NewCommitment(msg Message, set *Includers) (*commitment, error) {
+func NewCommitment(msg Message, set *Includers, complete chan<- string) (*commitment, error) {
 	if err := msg.Validate(); err != nil {
 		return nil, err
 	}
@@ -22,6 +24,7 @@ func NewCommitment(msg Message, set *Includers) (*commitment, error) {
 		msg:          msg,
 		signatures:   make([]Signature, 0, set.Len()),
 		includersSet: set,
+		complete:     complete,
 	}, nil
 }
 
@@ -47,10 +50,14 @@ func (c *commitment) AddSignature(s Signature) (bool, error) {
 
 	c.signatures = append(c.signatures, s)
 	c.totalStake += includer.Stake
-	quorum := minRequiredStake(c.includersSet.TotalStake())
-	return c.totalStake >= quorum, nil
+
+	completed := c.totalStake >= minRequiredAmount(c.includersSet.TotalStake())
+	if completed {
+		c.complete <- c.msg.ID.String()
+	}
+	return completed, nil
 }
 
-func minRequiredStake(stake int64) int64 {
-	return stake*2/3 + 1
+func minRequiredAmount(amount int64) int64 {
+	return amount*2/3 + 1
 }
