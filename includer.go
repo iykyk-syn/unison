@@ -1,4 +1,4 @@
-package validator
+package rebro
 
 import (
 	"bytes"
@@ -7,20 +7,19 @@ import (
 	"math"
 	"sort"
 
-	"github.com/1ykyk/rebro/types/keys"
+	"github.com/1ykyk/rebro/crypto"
 )
 
-// MaxStake - the maximum allowed total voting power.
+// MaxStake - the maximum allowed stake.
 const MaxStake = int64(math.MaxInt64) / 8
 
 type Includer struct {
-	PubKey keys.PubKey
+	PubKey crypto.PubKey
 
-	Stake    int64
-	priority int64
+	Stake int64
 }
 
-func NewValidator(pK keys.PubKey, Stake int64) *Includer {
+func NewIncluder(pK crypto.PubKey, Stake int64) *Includer {
 	return &Includer{
 		PubKey: pK,
 		Stake:  Stake,
@@ -33,24 +32,24 @@ func (i *Includer) Validate() error {
 		return errors.New("nil includer")
 	}
 	if i.PubKey == nil {
-		return errors.New("validator does not have a public key")
+		return errors.New("includer does not have a public key")
 	}
 
 	if i.Stake < 0 {
-		return errors.New("validator has negative voting power")
+		return errors.New("includer has negative stake")
 	}
 	return nil
 }
 
 // Includers contains all available includers (+ the signer),
-// sorted by the voting power in a decreasing order
+// sorted by the stake amount in a decreasing order
 type Includers struct {
 	includers []*Includer
 
 	totalStake int64
 }
 
-func NewValidatorSet(v []*Includer) *Includers {
+func NewIncludersSet(v []*Includer) *Includers {
 	set := &Includers{includers: v}
 	sort.Sort(set)
 	return set
@@ -63,7 +62,7 @@ func (incl *Includers) Validate() error {
 
 	for idx, i := range incl.includers {
 		if err := i.Validate(); err != nil {
-			return fmt.Errorf("invalid validator #%d: %w", idx, err)
+			return fmt.Errorf("invalid includer #%d: %w", idx, err)
 		}
 	}
 
@@ -93,7 +92,7 @@ func (incl *Includers) updateTotalStake() {
 		sum = safeAddClip(sum, val.Stake)
 		if sum > MaxStake {
 			panic(fmt.Sprintf(
-				"Total voting power exceeds MaxStake: %v; got: %v",
+				"Total stake exceeds MaxStake: %v; got: %v",
 				MaxStake,
 				sum))
 		}

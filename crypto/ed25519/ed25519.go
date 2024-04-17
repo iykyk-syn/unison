@@ -1,12 +1,12 @@
 package ed25519
 
 import (
-	"crypto"
+	sha256 "crypto"
 	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
 
-	"github.com/1ykyk/rebro/types/keys"
+	"github.com/1ykyk/rebro/crypto"
 )
 
 const (
@@ -40,10 +40,10 @@ func (pubKey PublicKey) Type() string {
 type PrivateKey []byte
 
 func (privKey PrivateKey) Sign(msg []byte) ([]byte, error) {
-	return ed25519.PrivateKey(privKey).Sign(rand.Reader, msg, crypto.SHA256)
+	return ed25519.PrivateKey(privKey).Sign(rand.Reader, msg, sha256.SHA256)
 }
 
-func (privKey PrivateKey) PubKey() keys.PubKey {
+func (privKey PrivateKey) PubKey() crypto.PubKey {
 	public := ed25519.PrivateKey(privKey).Public().(ed25519.PublicKey)
 	key := make(PublicKey, ed25519.PublicKeySize)
 	copy(key, public)
