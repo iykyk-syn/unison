@@ -13,34 +13,27 @@ const (
 	KeyType = "ed25519"
 )
 
-type PubKey []byte
+type PublicKey []byte
 
-func (pubKey PubKey) Address() keys.Address {
-	if len(pubKey) != ed25519.PublicKeySize {
-		panic("invalid key length")
-	}
-	return keys.Address(pubKey[:keys.AddressSize])
-}
-
-func (pubKey PubKey) VerifySignature(msg []byte, sig []byte) bool {
+func (pubKey PublicKey) VerifySignature(msg []byte, sig []byte) bool {
 	if len(sig) != ed25519.SignatureSize {
 		return false
 	}
 	return ed25519.Verify(ed25519.PublicKey(pubKey), msg, sig)
 }
 
-func (pubKey PubKey) Equals(other []byte) bool {
+func (pubKey PublicKey) Equals(other []byte) bool {
 	if len(other) != ed25519.PublicKeySize {
 		return false
 	}
 	return ed25519.PublicKey(pubKey).Equal(other)
 }
 
-func (pubKey PubKey) Bytes() []byte {
+func (pubKey PublicKey) Bytes() []byte {
 	return pubKey
 }
 
-func (pubKey PubKey) Type() string {
+func (pubKey PublicKey) Type() string {
 	return KeyType
 }
 
@@ -52,7 +45,7 @@ func (privKey PrivateKey) Sign(msg []byte) ([]byte, error) {
 
 func (privKey PrivateKey) PubKey() keys.PubKey {
 	public := ed25519.PrivateKey(privKey).Public().(ed25519.PublicKey)
-	key := make(PubKey, ed25519.PublicKeySize)
+	key := make(PublicKey, ed25519.PublicKeySize)
 	copy(key, public)
 	return key
 }
@@ -68,13 +61,13 @@ func (privKey PrivateKey) Type() string {
 	return KeyType
 }
 
-func GenKeys() (PubKey, PrivateKey, error) {
+func GenKeys() (PublicKey, PrivateKey, error) {
 	pubK, privK, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	public := make(PubKey, ed25519.PublicKeySize)
+	public := make(PublicKey, ed25519.PublicKeySize)
 	copy(public, pubK)
 	private := make(PrivateKey, ed25519.PrivateKeySize)
 	copy(private, privK)
@@ -82,12 +75,12 @@ func GenKeys() (PubKey, PrivateKey, error) {
 	return public, private, nil
 }
 
-func BytesToPubKey(b []byte) (PubKey, error) {
+func BytesToPubKey(b []byte) (PublicKey, error) {
 	if len(b) != ed25519.PublicKeySize {
 		return nil, errors.New("invalid key length")
 	}
 
-	key := make(PubKey, ed25519.PublicKeySize)
+	key := make(PublicKey, ed25519.PublicKeySize)
 	copy(key, b)
 	return key, nil
 }

@@ -232,7 +232,7 @@ func (m *messageId) New() rebro.MessageID {
 	return &messageId{}
 }
 
-func (m *messageId) ValidateBasic() error { return nil }
+func (m *messageId) Validate() error { return nil }
 
 func (m *messageId) MarshalBinary() ([]byte, error) {
 	// TODO implement me

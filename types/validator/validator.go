@@ -10,65 +10,59 @@ import (
 	"github.com/1ykyk/rebro/types/keys"
 )
 
-// MaxTotalVotingPower - the maximum allowed total voting power.
-const MaxTotalVotingPower = int64(math.MaxInt64) / 8
+// MaxStake - the maximum allowed total voting power.
+const MaxStake = int64(math.MaxInt64) / 8
 
-type Validator struct {
-	Address keys.Address
-	PubKey  keys.PubKey
+type Includer struct {
+	PubKey keys.PubKey
 
-	VotingPower int64
-	priority    int64
+	Stake    int64
+	priority int64
 }
 
-func NewValidator(pK keys.PubKey, votingPower int64) *Validator {
-	return &Validator{
-		Address:     pK.Address(),
-		PubKey:      pK,
-		VotingPower: votingPower,
+func NewValidator(pK keys.PubKey, Stake int64) *Includer {
+	return &Includer{
+		PubKey: pK,
+		Stake:  Stake,
 	}
 }
 
-// ValidateBasic performs basic validation.
-func (v *Validator) ValidateBasic() error {
-	if v == nil {
-		return errors.New("nil validator")
+// Validate performs basic validation.
+func (i *Includer) Validate() error {
+	if i == nil {
+		return errors.New("nil includer")
 	}
-	if v.PubKey == nil {
+	if i.PubKey == nil {
 		return errors.New("validator does not have a public key")
 	}
 
-	if v.VotingPower < 0 {
+	if i.Stake < 0 {
 		return errors.New("validator has negative voting power")
-	}
-
-	if len(v.Address) != keys.AddressSize {
-		return fmt.Errorf("validator address is the wrong size: %v", v.Address)
 	}
 	return nil
 }
 
-// ValidatorSet contains all available validators (including the signer),
+// Includers contains all available includers (+ the signer),
 // sorted by the voting power in a decreasing order
-type ValidatorSet struct {
-	validators []*Validator
+type Includers struct {
+	includers []*Includer
 
-	totalVotingPower int64
+	totalStake int64
 }
 
-func NewValidatorSet(v []*Validator) *ValidatorSet {
-	set := &ValidatorSet{validators: v}
+func NewValidatorSet(v []*Includer) *Includers {
+	set := &Includers{includers: v}
 	sort.Sort(set)
 	return set
 }
 
-func (vals *ValidatorSet) ValidateBasic() error {
-	if vals == nil || len(vals.validators) == 0 {
-		return errors.New("validator set is nil or empty")
+func (incl *Includers) Validate() error {
+	if incl == nil || len(incl.includers) == 0 {
+		return errors.New("includers are nil or empty")
 	}
 
-	for idx, val := range vals.validators {
-		if err := val.ValidateBasic(); err != nil {
+	for idx, i := range incl.includers {
+		if err := i.Validate(); err != nil {
 			return fmt.Errorf("invalid validator #%d: %w", idx, err)
 		}
 	}
@@ -76,8 +70,8 @@ func (vals *ValidatorSet) ValidateBasic() error {
 	return nil
 }
 
-func (vals *ValidatorSet) GetByPubKey(pubK []byte) *Validator {
-	for _, v := range vals.validators {
+func (incl *Includers) GetByPubKey(pubK []byte) *Includer {
+	for _, v := range incl.includers {
 		if v.PubKey.Equals(pubK) {
 			return v
 		}
@@ -85,39 +79,39 @@ func (vals *ValidatorSet) GetByPubKey(pubK []byte) *Validator {
 	return nil
 }
 
-func (vals *ValidatorSet) TotalVotingPower() int64 {
-	if vals.totalVotingPower == 0 {
-		vals.updateTotalVotingPower()
+func (incl *Includers) TotalStake() int64 {
+	if incl.totalStake == 0 {
+		incl.updateTotalStake()
 	}
-	return vals.totalVotingPower
+	return incl.totalStake
 }
 
-func (vals *ValidatorSet) updateTotalVotingPower() {
+func (incl *Includers) updateTotalStake() {
 	sum := int64(0)
-	for _, val := range vals.validators {
+	for _, val := range incl.includers {
 		// mind overflow
-		sum = safeAddClip(sum, val.VotingPower)
-		if sum > MaxTotalVotingPower {
+		sum = safeAddClip(sum, val.Stake)
+		if sum > MaxStake {
 			panic(fmt.Sprintf(
-				"Total voting power exceeds MaxTotalVotingPower: %v; got: %v",
-				MaxTotalVotingPower,
+				"Total voting power exceeds MaxStake: %v; got: %v",
+				MaxStake,
 				sum))
 		}
 	}
-	vals.totalVotingPower = sum
+	incl.totalStake = sum
 }
 
-func (vals *ValidatorSet) Len() int { return len(vals.validators) }
+func (incl *Includers) Len() int { return len(incl.includers) }
 
-func (vals *ValidatorSet) Less(i, j int) bool {
-	if vals.validators[i].VotingPower == vals.validators[j].VotingPower {
-		return bytes.Compare(vals.validators[i].Address, vals.validators[j].Address) == -1
+func (incl *Includers) Less(i, j int) bool {
+	if incl.includers[i].Stake == incl.includers[j].Stake {
+		return bytes.Compare(incl.includers[i].PubKey.Bytes(), incl.includers[j].PubKey.Bytes()) == -1
 	}
-	return vals.validators[i].VotingPower > vals.validators[j].VotingPower
+	return incl.includers[i].Stake > incl.includers[j].Stake
 }
 
-func (vals *ValidatorSet) Swap(i, j int) {
-	vals.validators[i], vals.validators[j] = vals.validators[j], vals.validators[i]
+func (incl *Includers) Swap(i, j int) {
+	incl.includers[i], incl.includers[j] = incl.includers[j], incl.includers[i]
 }
 
 func safeAddClip(a, b int64) int64 {

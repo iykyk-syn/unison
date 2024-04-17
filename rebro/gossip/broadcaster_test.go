@@ -220,7 +220,7 @@ func (m *messageId) UnmarshalBinary(bytes []byte) error {
 	return nil
 }
 
-func (m *messageId) ValidateBasic() error {
+func (m *messageId) Validate() error {
 	return nil
 }
 

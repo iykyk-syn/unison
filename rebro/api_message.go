@@ -10,11 +10,11 @@ type Message struct {
 	Data []byte
 }
 
-func (m *Message) ValidateBasic() error {
+func (m *Message) Validate() error {
 	if len(m.Data) == 0 || m.ID == nil {
-		return errors.New("no data provided for the message")
+		return errors.New("empty data or id of the message")
 	}
-	return m.ID.ValidateBasic()
+	return m.ID.Validate()
 }
 
 // MessageID contains metadata that uniquely identifies a broadcasted message. It specifies
@@ -34,7 +34,7 @@ type MessageID interface {
 	// UnmarshalBinary deserializes MessageID from a series of bytes.
 	UnmarshalBinary([]byte) error
 
-	ValidateBasic() error
+	Validate() error
 }
 
 // MessageIDDecoder unmarshalls Messages of a particular type.

@@ -5,35 +5,31 @@ import (
 
 	"github.com/1ykyk/rebro"
 	"github.com/1ykyk/rebro/types/keys"
+	"github.com/1ykyk/rebro/types/keys/ed25519"
 )
 
-type signer struct {
+type localSigner struct {
 	privKey keys.PrivKey
 	pubKey  keys.PubKey
-
-	pubKeyBuilder func([]byte) (keys.PubKey, error)
 }
 
-func NewSigner(privKey keys.PrivKey, pubKey keys.PubKey, bytesToPubKeyFn func([]byte) (keys.PubKey, error)) (rebro.Signer, error) {
+func NewSigner(privKey keys.PrivKey) (*localSigner, error) {
+	pubKey := privKey.PubKey()
 	if !privKey.PubKey().Equals(pubKey.Bytes()) {
 		return nil, errors.New("invalid pubKey received")
 	}
-	if bytesToPubKeyFn == nil {
-		return nil, errors.New("empty pubKey builder")
-	}
 
-	return &signer{
-		privKey:       privKey,
-		pubKey:        pubKey,
-		pubKeyBuilder: bytesToPubKeyFn,
+	return &localSigner{
+		privKey: privKey,
+		pubKey:  pubKey,
 	}, nil
 }
 
-func (s *signer) ID() []byte {
+func (s *localSigner) ID() []byte {
 	return s.pubKey.Bytes()
 }
 
-func (s *signer) Sign(msg []byte) (rebro.Signature, error) {
+func (s *localSigner) Sign(msg []byte) (rebro.Signature, error) {
 	signature, err := s.privKey.Sign(msg)
 	if err != nil {
 		return rebro.Signature{}, err
@@ -45,12 +41,8 @@ func (s *signer) Sign(msg []byte) (rebro.Signature, error) {
 	}, nil
 }
 
-func (s *signer) Verify(msg []byte, signature rebro.Signature) error {
-	pubK, err := s.pubKeyBuilder(signature.Signer)
-	if err != nil {
-		return nil
-	}
-
+func (s *localSigner) Verify(msg []byte, signature rebro.Signature) error {
+	pubK := ed25519.PublicKey(signature.Signer)
 	ok := pubK.VerifySignature(msg, signature.Body)
 	if !ok {
 		return errors.New("signature is invalid")
