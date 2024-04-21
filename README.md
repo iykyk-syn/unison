@@ -1,15 +1,13 @@
 # Unison
-> Network nodes performing in unison!
+> Consensus nodes performing in unison!
 
-The Unison project is a collection of modular and reusable BFT consensus and broadcast technologies bundled together as 
-a full stack of protocols for scalable blockchain networks. Building large-scale BFT systems has been complex and 
-challenging in the last decade and Unison is a way to fix that. It's consensus stack that cleanly separates concerns and
-enables sophisticated applications to use only the protocols they need without giving up interoperability and 
-upgradeability.
+The Unison project is a collection of modular and reusable BFT consensus and broadcast software primitives bundled 
+together as a full stack of protocols for scalable and modular blockchain networks. It's a consensus stack that cleanly 
+separates concerns aiming to scale-out them to the limit.
 
-Philosophically, Unison stack draws inspiration from projects like LLVM and libp2p. Technically, Unison implements 
-protocols like [Narwhal](https://arxiv.org/pdf/2105.11827.pdf) and [Bullshark](https://arxiv.org/pdf/2201.05677.pdf) 
-with [Shoal](https://arxiv.org/pdf/2306.03058.pdf).
+Philosophically, Unison stack draws inspiration from projects like LLVM and libp2p. Technologically, Unison implements 
+protocols alike [Narwhal](https://arxiv.org/pdf/2105.11827.pdf), [Bullshark](https://arxiv.org/pdf/2201.05677.pdf) 
+with [Shoal](https://arxiv.org/pdf/2306.03058.pdf) and [Pilotfish](https://arxiv.org/abs/2401.16292).
 
 Unison carefully defines low-level network primitives. The current up-to-date list is:
 * ReBro(Reliable Broadcast)
@@ -45,9 +43,10 @@ decision and not software limitation.
 ## RoadMap
 
 * Narwhal-based transaction Data Availability System with casual ordering
-* Tendermint consensus running over Unison via CometBFT fork
+* Tendermint consensus running over Unison via CometBFT fork integrating ABCI++ chains
 * Bullshark
 * Shoal
+* Pilotfish
 
 ## FAQ
 
