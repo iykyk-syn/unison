@@ -1,38 +1,38 @@
 package rebro
 
-// Commitment maintains a set of signatures/acknowledgements from a quorum certifying validity
-// of an arbitrary broadcasted message. Validity rules are not defined by Commitment and are an external concern.
-type Commitment interface {
-	// Message returns Message that Commitment attests to.
+// Certificate maintains a set of signatures/acknowledgements from a quorum certifying validity
+// of an arbitrary broadcasted message. Validity rules are not defined by Certificate and are an external concern.
+type Certificate interface {
+	// Message returns Message that Certificate attests to.
 	Message() Message
-	// Signatures provides list of all the signatures in the Commitment.
+	// Signatures provides list of all the signatures in the Certificate.
 	Signatures() []Signature
-	// AddSignature appends signature of a particular signer to the Commitment.
+	// AddSignature appends signature of a particular signer to the Certificate.
 	// Signature is expected to be verified beforehand.
-	// Reports true if enough signatures were collected for complete Commitment.
+	// Reports true if enough signatures were collected for complete Certificate.
 	AddSignature(Signature) (bool, error)
-	// Quorum back-references QuorumCommitment the Commitment is attached to.
-	Quorum() QuorumCommitment
+	// Quorum back-references QuorumCertificate the Certificate is attached to.
+	Quorum() QuorumCertificate
 }
 
-// QuorumCommitment is a set data Commitments(or certificates) by a quorum. It accumulates data
-// Commitments propagated over Broadcaster network by quorum participants and maintains *local
-// view* of Commitments.
+// QuorumCertificate is a set data Certificates by a quorum. It accumulates data
+// Certificates propagated over Broadcaster network by quorum participants and maintains *local
+// view* of Certificates.
 //
-// QuorumCommitment is mutable and append-only until its finalized.
-// It expects arbitrary number of new Commitments to be added until finalization is triggered.
+// QuorumCertificate is mutable and append-only until its finalized.
+// It expects arbitrary number of new Certificates to be added until finalization is triggered.
 // The finalization conditions and quorums are implementation specific.
-type QuorumCommitment interface {
-	// Add constructs new Commitment from given the given message and adds it to the set
+type QuorumCertificate interface {
+	// Add constructs new Certificate from given the given message and adds it to the set
 	// performing necessary verification.
 	Add(Message) error
-	// Get retrieves particular Commitment by the MessageID of the committed MessageData.
-	Get(MessageID) (Commitment, bool)
-	// Delete deletes Commitment by the MessageID of the committed MessageData.
+	// Get retrieves particular Certificate by the MessageID of the committed MessageData.
+	Get(MessageID) (Certificate, bool)
+	// Delete deletes Certificate by the MessageID of the committed MessageData.
 	Delete(MessageID) bool
-	// List provides all the Commitments in the QuorumCommitment.
-	List() []Commitment
-	// Finalize attempts to finalize the QuorumCommitment.
+	// List provides all the Certificates in the QuorumCertificate.
+	List() []Certificate
+	// Finalize attempts to finalize the QuorumCertificate.
 	// It reports whether the finalization conditions were met.
 	// The finalization conditions are defined by the implementation.
 	// It may additionally perform expensive computation, like signature aggregation.

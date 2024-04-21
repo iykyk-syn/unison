@@ -229,7 +229,7 @@ func unmarshalMessageID(bytes []byte) (rebro.MessageID, error) {
 type quorum struct {
 	Size      int
 	Threshold int
-	comms     map[string]*commitment
+	comms     map[string]*certificate
 	finalized int
 }
 
@@ -237,19 +237,19 @@ func newQuorum(size, threshold int) *quorum {
 	return &quorum{
 		Size:      size,
 		Threshold: threshold,
-		comms:     map[string]*commitment{},
+		comms:     map[string]*certificate{},
 	}
 }
 
 func (q *quorum) Add(msg rebro.Message) error {
-	q.comms[msg.ID.String()] = &commitment{
+	q.comms[msg.ID.String()] = &certificate{
 		q:   q,
 		msg: msg,
 	}
 	return nil
 }
 
-func (q *quorum) Get(id rebro.MessageID) (rebro.Commitment, bool) {
+func (q *quorum) Get(id rebro.MessageID) (rebro.Certificate, bool) {
 	comm, ok := q.comms[id.String()]
 	return comm, ok
 }
@@ -260,8 +260,8 @@ func (q *quorum) Delete(id rebro.MessageID) bool {
 	return ok
 }
 
-func (q *quorum) List() []rebro.Commitment {
-	list := make([]rebro.Commitment, 0, len(q.comms))
+func (q *quorum) List() []rebro.Certificate {
+	list := make([]rebro.Certificate, 0, len(q.comms))
 	for _, comm := range q.comms {
 		list = append(list, comm)
 	}
@@ -270,7 +270,7 @@ func (q *quorum) List() []rebro.Commitment {
 }
 
 func (q *quorum) Finalize() (bool, error) {
-	comms := make(map[string]*commitment)
+	comms := make(map[string]*certificate)
 	for _, comm := range q.comms {
 		if len(comm.sigs) >= q.Threshold {
 			comms[comm.Message().ID.String()] = comm
@@ -285,25 +285,25 @@ func (q *quorum) Finalize() (bool, error) {
 	return true, nil
 }
 
-type commitment struct {
+type certificate struct {
 	q    *quorum
 	msg  rebro.Message
 	sigs []rebro.Signature
 }
 
-func (c *commitment) Message() rebro.Message {
+func (c *certificate) Message() rebro.Message {
 	return c.msg
 }
 
-func (c *commitment) Signatures() []rebro.Signature {
+func (c *certificate) Signatures() []rebro.Signature {
 	return c.sigs
 }
 
-func (c *commitment) AddSignature(sig rebro.Signature) (bool, error) {
+func (c *certificate) AddSignature(sig rebro.Signature) (bool, error) {
 	c.sigs = append(c.sigs, sig)
 	return len(c.sigs) == c.q.Threshold, nil
 }
 
-func (c *commitment) Quorum() rebro.QuorumCommitment {
+func (c *certificate) Quorum() rebro.QuorumCertificate {
 	return c.q
 }

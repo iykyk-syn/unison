@@ -61,19 +61,19 @@ func (bro *Broadcaster) processData(ctx context.Context, gsp gossipmsg.Gossip) e
 	if err != nil {
 		return fmt.Errorf("getting round(%d): %w", id.Round(), err)
 	}
-	// add to quorum and prepare the commitment
-	err = r.AddCommitment(ctx, msg)
+	// add to quorum and prepare the certificate
+	err = r.AddCertificate(ctx, msg)
 	if err != nil {
-		return fmt.Errorf("adding commitment(%s) to the round(%d): %w", id.String(), id.Round(), err)
+		return fmt.Errorf("adding certificate(%s) to the round(%d): %w", id.String(), id.Round(), err)
 	}
 
 	if err = bro.verifier.Verify(ctx, msg); err != nil {
-		err = fmt.Errorf("verifying commitment(%s) for round(%d): %w", id.String(), id.Round(), err)
-		// it means something is wrong with the message and thus its commitment,
+		err = fmt.Errorf("verifying certificate(%s) for round(%d): %w", id.String(), id.Round(), err)
+		// it means something is wrong with the message and thus its certificate,
 		// so delete it
-		deleteErr := r.DeleteCommitment(ctx, id)
+		deleteErr := r.DeleteCertificate(ctx, id)
 		if err != nil {
-			err = errors.Join(err, fmt.Errorf("deleting invalid commitment(%s) from round(%d): %w", id.String(), id.Round(), deleteErr))
+			err = errors.Join(err, fmt.Errorf("deleting invalid certificate(%s) from round(%d): %w", id.String(), id.Round(), deleteErr))
 		}
 		return err
 	}
@@ -121,10 +121,10 @@ func (bro *Broadcaster) processSignature(ctx context.Context, gsp gossipmsg.Goss
 		return fmt.Errorf("getting round(%d): %w", id.Round(), err)
 	}
 
-	// ensure we have the commitment before doing expensive verification
-	_, err = r.GetCommitment(ctx, id)
+	// ensure we have the certificate before doing expensive verification
+	_, err = r.GetCertificate(ctx, id)
 	if err != nil {
-		return fmt.Errorf("getting commitment(%s) for the round(%d): %w", id.String(), id.Round(), err)
+		return fmt.Errorf("getting certificate(%s) for the round(%d): %w", id.String(), id.Round(), err)
 	}
 
 	signatureData, err := gsp.Signature().Signature()
@@ -148,7 +148,7 @@ func (bro *Broadcaster) processSignature(ctx context.Context, gsp gossipmsg.Goss
 
 	err = r.AddSignature(ctx, id, signature)
 	if err != nil {
-		return fmt.Errorf("adding signature from(%X) to commitment(%s), for round(%d): %w", signature.Signer, id.String(), id.Round(), err)
+		return fmt.Errorf("adding signature from(%X) to certificate(%s), for round(%d): %w", signature.Signer, id.String(), id.Round(), err)
 	}
 
 	return nil

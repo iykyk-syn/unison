@@ -21,14 +21,14 @@ func TestRound(t *testing.T) {
 	id := &messageId{id: "msgid"}
 
 	// check all the basic crud operations work
-	err := r.AddCommitment(ctx, rebro.Message{ID: id})
+	err := r.AddCertificate(ctx, rebro.Message{ID: id})
 	require.NoError(t, err)
-	comm, err := r.GetCommitment(ctx, id)
+	comm, err := r.GetCertificate(ctx, id)
 	require.NoError(t, err)
 	require.NotNil(t, comm)
 	err = r.AddSignature(ctx, id, rebro.Signature{})
 	require.NoError(t, err)
-	err = r.DeleteCommitment(ctx, id)
+	err = r.DeleteCertificate(ctx, id)
 	require.NoError(t, err)
 	err = r.AddSignature(ctx, id, rebro.Signature{})
 	require.Error(t, err)
@@ -52,28 +52,28 @@ func TestRoundSubscription(t *testing.T) {
 	r := NewRound(0, quorum)
 	id := &messageId{id: "msgid"}
 
-	// subscribe for commitment
-	commCh, errCh := make(chan rebro.Commitment), make(chan error)
+	// subscribe for certificate
+	commCh, errCh := make(chan rebro.Certificate), make(chan error)
 	go func() {
-		comm, err := r.GetCommitment(ctx, id)
+		comm, err := r.GetCertificate(ctx, id)
 		commCh <- comm
 		errCh <- err
 	}()
 	go func() {
-		comm, err := r.GetCommitment(ctx, id)
+		comm, err := r.GetCertificate(ctx, id)
 		commCh <- comm
 		errCh <- err
 	}()
 
 	// ensure subscription cancellation works
 	getCtx, cancel := context.WithTimeout(ctx, time.Millisecond*10)
-	comm, err := r.GetCommitment(getCtx, &messageId{id: "msgid2"})
+	comm, err := r.GetCertificate(getCtx, &messageId{id: "msgid2"})
 	require.Error(t, err)
 	require.Nil(t, comm)
 	cancel()
 
 	// ensure subscriptions work
-	err = r.AddCommitment(ctx, rebro.Message{ID: id})
+	err = r.AddCertificate(ctx, rebro.Message{ID: id})
 	require.NoError(t, err)
 	comm, err = <-commCh, <-errCh
 	require.NoError(t, err)
@@ -119,14 +119,14 @@ func TestRoundConcurrentAccess(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		id := &messageId{id: strconv.Itoa(i)}
 		wg.Go(func() error {
-			commCh, errCh := make(chan rebro.Commitment), make(chan error)
+			commCh, errCh := make(chan rebro.Certificate), make(chan error)
 			go func() {
-				comm, err := r.GetCommitment(ctx, id)
+				comm, err := r.GetCertificate(ctx, id)
 				commCh <- comm
 				errCh <- err
 			}()
 
-			err := r.AddCommitment(ctx, rebro.Message{ID: id})
+			err := r.AddCertificate(ctx, rebro.Message{ID: id})
 			if err != nil {
 				return err
 			}
@@ -136,7 +136,7 @@ func TestRoundConcurrentAccess(t *testing.T) {
 				return err
 			}
 
-			_, err = r.GetCommitment(ctx, id)
+			_, err = r.GetCertificate(ctx, id)
 			if err != nil {
 				return err
 			}
@@ -146,7 +146,7 @@ func TestRoundConcurrentAccess(t *testing.T) {
 				return err
 			}
 
-			err = r.DeleteCommitment(ctx, id)
+			err = r.DeleteCertificate(ctx, id)
 			if err != nil {
 				return err
 			}
@@ -173,7 +173,7 @@ func TestRoundFinalize(t *testing.T) {
 	r := NewRound(0, quorum)
 
 	go func() {
-		err := r.AddCommitment(ctx, rebro.Message{ID: id})
+		err := r.AddCertificate(ctx, rebro.Message{ID: id})
 		if err != nil {
 			t.Error(err)
 			return
@@ -243,24 +243,24 @@ func (m *messageId) UnmarshalBinary(bytes []byte) error {
 }
 
 type quorum struct {
-	comms map[string]*commitment
+	comms map[string]*certificate
 }
 
 func newQuorum() *quorum {
 	return &quorum{
-		comms: map[string]*commitment{},
+		comms: map[string]*certificate{},
 	}
 }
 
 func (q *quorum) Add(msg rebro.Message) error {
-	q.comms[msg.ID.String()] = &commitment{
+	q.comms[msg.ID.String()] = &certificate{
 		q:   q,
 		msg: msg,
 	}
 	return nil
 }
 
-func (q *quorum) Get(id rebro.MessageID) (rebro.Commitment, bool) {
+func (q *quorum) Get(id rebro.MessageID) (rebro.Certificate, bool) {
 	comm, ok := q.comms[id.String()]
 	return comm, ok
 }
@@ -271,8 +271,8 @@ func (q *quorum) Delete(id rebro.MessageID) bool {
 	return ok
 }
 
-func (q *quorum) List() []rebro.Commitment {
-	list := make([]rebro.Commitment, 0, len(q.comms))
+func (q *quorum) List() []rebro.Certificate {
+	list := make([]rebro.Certificate, 0, len(q.comms))
 	for _, comm := range q.comms {
 		list = append(list, comm)
 	}
@@ -284,25 +284,25 @@ func (q *quorum) Finalize() (bool, error) {
 	return len(q.comms) == 1, nil
 }
 
-type commitment struct {
+type certificate struct {
 	q    *quorum
 	msg  rebro.Message
 	sigs []rebro.Signature
 }
 
-func (c *commitment) Message() rebro.Message {
+func (c *certificate) Message() rebro.Message {
 	return c.msg
 }
 
-func (c *commitment) Signatures() []rebro.Signature {
+func (c *certificate) Signatures() []rebro.Signature {
 	return c.sigs
 }
 
-func (c *commitment) AddSignature(sig rebro.Signature) (bool, error) {
+func (c *certificate) AddSignature(sig rebro.Signature) (bool, error) {
 	c.sigs = append(c.sigs, sig)
 	return len(c.sigs) == 2, nil
 }
 
-func (c *commitment) Quorum() rebro.QuorumCommitment {
+func (c *certificate) Quorum() rebro.QuorumCertificate {
 	return c.q
 }

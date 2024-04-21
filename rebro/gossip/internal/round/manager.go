@@ -53,7 +53,7 @@ func (rm *Manager) Stop(ctx context.Context) error {
 
 // StartRound instantiates and starts a new [Round].
 // It adds the [Round] to the [Manager], notifying all the [Manager.GetRound] waiters.
-func (rm *Manager) StartRound(roundNum uint64, qcomm rebro.QuorumCommitment) (*Round, error) {
+func (rm *Manager) StartRound(roundNum uint64, qcomm rebro.QuorumCertificate) (*Round, error) {
 	rm.roundsMu.Lock()
 	defer rm.roundsMu.Unlock()
 

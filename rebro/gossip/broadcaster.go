@@ -98,7 +98,7 @@ func (bro *Broadcaster) Stop(ctx context.Context) (err error) {
 	return err
 }
 
-func (bro *Broadcaster) Broadcast(ctx context.Context, msg rebro.Message, qcomm rebro.QuorumCommitment) error {
+func (bro *Broadcaster) Broadcast(ctx context.Context, msg rebro.Message, qcomm rebro.QuorumCertificate) error {
 	r, err := bro.rounds.StartRound(msg.ID.Round(), qcomm)
 	if err != nil {
 		return err

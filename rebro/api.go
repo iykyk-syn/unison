@@ -1,5 +1,5 @@
 // Package rebro enables:
-//   - High throughput censorship resistant commitments
+//   - High throughput censorship resistant certificates
 //   - Dynamic and randomized quorums
 //   - Customization of hashing functions and signing schemes, including aggregatable signatures.
 //   - Customization of broadcasting algorithms and networking stacks
@@ -15,31 +15,31 @@ import (
 )
 
 // Broadcaster reliably broadcasts, delivers and commits over messages. It verifies Messages
-// delivered from other quorum participants and accumulates them into QuorumCommitment until its
+// delivered from other quorum participants and accumulates them into QuorumCertificate until its
 // finalized.
 //
 // Broadcaster defines interface for asynchronous byzantine reliable quorum broadcast.
 // It is responsible for reliable broadcasting and certification of an arbitrary data without
-// partial synchrony. It enables parallel quorum commitments and multiple broadcasters can propose
+// partial synchrony. It enables parallel quorum certificates and multiple broadcasters can propose
 // their Messages simultaneously that other quorum participants attest to.
 //
 // Broadcaster enables optionality(through polymorphism) for networking algorithms
-// (leader-based or mesh-based) by decoupling commitment data structure.
+// (leader-based or mesh-based) by decoupling certificate data structure.
 //
 // It signs over broadcasted MessageIDs automatically after verifying them using Signer.
 // TODO: Explain rules around rounds
 type Broadcaster interface {
 	// Broadcast broadcasts and delivers messages from quorum participants and signatures over them
-	// until QuorumCommitment is finalized.
-	Broadcast(context.Context, Message, QuorumCommitment) error
+	// until QuorumCertificate is finalized.
+	Broadcast(context.Context, Message, QuorumCertificate) error
 }
 
 // Verifier performs application specific message stateful verification.
 // It used by Broadcaster during broadcasting rounds.
 type Verifier interface {
-	// Verify executes verification of every Message delivered to QuorumCommitment
+	// Verify executes verification of every Message delivered to QuorumCertificate
 	// within a broadcasting round.
-	// Message is guaranteed to be valid by the rules in QuorumCommitment.
+	// Message is guaranteed to be valid by the rules in QuorumCertificate.
 	Verify(context.Context, Message) error
 }
 

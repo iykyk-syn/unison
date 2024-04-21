@@ -17,29 +17,29 @@ const (
 // errClosedRound singles that Round is accessed after being closed
 var errClosedRound = errors.New("closed round access")
 
-// Round maintains state of broadcasting rounds and local pubsub system for commitments.
-// It guards [rebro.QuorumCommitment] from concurrent access ensuring thread-safety.
+// Round maintains state of broadcasting rounds and local pubsub system for certificates.
+// It guards [rebro.QuorumCertificate] from concurrent access ensuring thread-safety.
 // Round is not concerned of validity of any given input and solely acting as a state machine of
 // the broadcasting round.
 type Round struct {
 	roundNum uint64
 	// the actual state of the Round
-	quorum rebro.QuorumCommitment
+	quorum rebro.QuorumCertificate
 
 	// channel for operation submission to be executed
 	stateOpCh chan *stateOp
-	// maintains subscriptions for commitments by their ids
+	// maintains subscriptions for certificates by their ids
 	getOpSubs map[string]map[*stateOp]struct{}
-	// finalCh gets closed when the quorum commitment has been finalized to notify listeners
+	// finalCh gets closed when the quorum certificate has been finalized to notify listeners
 	finalCh chan struct{}
 	// signalling for graceful shutdown
 	closeCh, closedCh chan struct{}
 }
 
-// NewRound instantiates a new [Round] state machine wrapping [rebro.QuorumCommitment].
-// This passes full ownership of the [rebro.QuorumCommitment] fully to [Round],
+// NewRound instantiates a new [Round] state machine wrapping [rebro.QuorumCertificate].
+// This passes full ownership of the [rebro.QuorumCertificate] fully to [Round],
 // thus it must not be used for writes until [Round] has been stopped.
-func NewRound(roundNum uint64, quorum rebro.QuorumCommitment) *Round {
+func NewRound(roundNum uint64, quorum rebro.QuorumCertificate) *Round {
 	r := &Round{
 		roundNum:  roundNum,
 		quorum:    quorum,
@@ -71,7 +71,7 @@ func (r *Round) Stop(ctx context.Context) error {
 	}
 }
 
-// Finalize awaits finalization of the [Round]'s [rebro.QuorumCommitment].
+// Finalize awaits finalization of the [Round]'s [rebro.QuorumCertificate].
 func (r *Round) Finalize(ctx context.Context) error {
 	select {
 	case <-r.finalCh:
@@ -86,16 +86,16 @@ func (r *Round) RoundNumber() uint64 {
 	return r.roundNum
 }
 
-// AddCommitment add the given message to the Round forming a new [rebro.Commitment] on
-// [rebro.QuorumCommitment].
-func (r *Round) AddCommitment(ctx context.Context, msg rebro.Message) error {
+// AddCertificate add the given message to the Round forming a new [rebro.Certificate] on
+// [rebro.QuorumCertificate].
+func (r *Round) AddCertificate(ctx context.Context, msg rebro.Message) error {
 	op := newStateOp(addOp)
 	op.msg = &msg
 
 	return r.execOp(ctx, op)
 }
 
-// stateAdd adds commitment to quorum additionally notifying all the subscribers for this commitment.
+// stateAdd adds certificate to quorum additionally notifying all the subscribers for this certificate.
 func (r *Round) stateAdd(op *stateOp) {
 	err := r.quorum.Add(*op.msg)
 	if err != nil {
@@ -108,14 +108,14 @@ func (r *Round) stateAdd(op *stateOp) {
 		op.SetError(nil)
 		return
 	}
-	// if so, get the commitment
+	// if so, get the certificate
 	comm, ok := r.quorum.Get(op.msg.ID)
 	if !ok {
-		panic("commitment not found on Get after successful Put")
+		panic("certificate not found on Get after successful Put")
 	}
 	// and notify them
 	for op := range r.getOpSubs[key] {
-		op.SetCommitment(comm)
+		op.SetCertificate(comm)
 	}
 	// cleaning up the subscriptions
 	delete(r.getOpSubs, key)
@@ -123,8 +123,8 @@ func (r *Round) stateAdd(op *stateOp) {
 	op.SetError(nil)
 }
 
-// GetCommitment gets commitment from the [Round] by the associated [rebro.MessageID].
-func (r *Round) GetCommitment(ctx context.Context, id rebro.MessageID) (rebro.Commitment, error) {
+// GetCertificate gets certificate from the [Round] by the associated [rebro.MessageID].
+func (r *Round) GetCertificate(ctx context.Context, id rebro.MessageID) (rebro.Certificate, error) {
 	op := newStateOp(getOp)
 	op.id = id
 
@@ -143,11 +143,11 @@ func (r *Round) GetCommitment(ctx context.Context, id rebro.MessageID) (rebro.Co
 	return nil, err
 }
 
-// stateGet gets commitment from quorum or subscribes to the commitment until it comes
+// stateGet gets certificate from quorum or subscribes to the certificate until it comes
 func (r *Round) stateGet(op *stateOp) {
 	comm, ok := r.quorum.Get(op.id)
 	if ok {
-		op.SetCommitment(comm)
+		op.SetCertificate(comm)
 		return
 	}
 
@@ -173,8 +173,8 @@ func (r *Round) stateGet(op *stateOp) {
 	return
 }
 
-// DeleteCommitment deletes commitment from the [Round] by the associated [rebro.MessageID].
-func (r *Round) DeleteCommitment(ctx context.Context, id rebro.MessageID) error {
+// DeleteCertificate deletes certificate from the [Round] by the associated [rebro.MessageID].
+func (r *Round) DeleteCertificate(ctx context.Context, id rebro.MessageID) error {
 	op := newStateOp(deleteOp)
 	op.id = id
 
@@ -184,13 +184,13 @@ func (r *Round) DeleteCommitment(ctx context.Context, id rebro.MessageID) error 
 func (r *Round) stateDelete(op *stateOp) {
 	ok := r.quorum.Delete(op.id) // TODO: Maybe error instead?
 	if !ok {
-		op.SetError(fmt.Errorf("coudn't delete Commitment"))
+		op.SetError(fmt.Errorf("coudn't delete Certificate"))
 		return
 	}
 	op.SetError(nil)
 }
 
-// AddSignature appends a Signature to one of the [Round]'s Commitments.
+// AddSignature appends a Signature to one of the [Round]'s Certificates.
 func (r *Round) AddSignature(ctx context.Context, id rebro.MessageID, sig rebro.Signature) error {
 	op := newStateOp(addSignOp)
 	op.id = id
@@ -204,7 +204,7 @@ func (r *Round) AddSignature(ctx context.Context, id rebro.MessageID, sig rebro.
 func (r *Round) stateAddSign(op *stateOp) {
 	comm, ok := r.quorum.Get(op.id)
 	if !ok {
-		op.SetError(fmt.Errorf("coudn't find Commitment"))
+		op.SetError(fmt.Errorf("coudn't find Certificate"))
 		return
 	}
 
@@ -213,7 +213,7 @@ func (r *Round) stateAddSign(op *stateOp) {
 		op.SetError(err)
 		return
 	}
-	// check if the commitment is complete
+	// check if the certificate is complete
 	if !fin {
 		op.SetError(nil)
 		return
@@ -221,7 +221,7 @@ func (r *Round) stateAddSign(op *stateOp) {
 	// check if the quorum has finalized
 	ok, err = r.quorum.Finalize()
 	if err != nil {
-		op.SetError(fmt.Errorf("finalizing quorum commitment: %w", err))
+		op.SetError(fmt.Errorf("finalizing quorum certificate: %w", err))
 		return
 	}
 	if !ok {
@@ -271,7 +271,7 @@ func (r *Round) execOpAsync(ctx context.Context, op *stateOp) error {
 }
 
 // stateLoop is an event loop performing state operations on the round
-// and ensures access to QuorumCommitment is single-threaded
+// and ensures access to QuorumCertificate is single-threaded
 func (r *Round) stateLoop() {
 	doOp := func(op *stateOp) {
 		switch op.kind {

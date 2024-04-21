@@ -25,17 +25,17 @@ type stateOp struct {
 	sig *rebro.Signature // addSignOp
 
 	// response data:
-	err  error            // addOp, deleteOp, addSignOp
-	comm rebro.Commitment // getOp
+	err  error             // addOp, deleteOp, addSignOp
+	comm rebro.Certificate // getOp
 }
 
 func newStateOp(kind stateOpKind) *stateOp {
 	return &stateOp{kind: kind, doneCh: make(chan any, 1)}
 }
 
-// SetCommitment sets [rebro.Commitment] result on the operation
+// SetCertificate sets [rebro.Certificate] result on the operation
 // and notifies that operation has been done.
-func (op *stateOp) SetCommitment(comm rebro.Commitment) {
+func (op *stateOp) SetCertificate(comm rebro.Certificate) {
 	op.comm = comm
 	op.doneCh <- comm
 }
