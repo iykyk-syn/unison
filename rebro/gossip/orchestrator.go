@@ -1,7 +1,7 @@
 package gossip
 
 import (
-	"github.com/1ykyk/rebro"
+	"github.com/iykyk-syn/unison/rebro"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 

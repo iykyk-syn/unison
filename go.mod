@@ -1,4 +1,4 @@
-module github.com/1ykyk/rebro
+module github.com/iykyk-syn/unison
 
 go 1.22.1
 

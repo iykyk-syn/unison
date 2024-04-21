@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"capnproto.org/go/capnp/v3"
-	"github.com/1ykyk/rebro"
-	"github.com/1ykyk/rebro/gossip/gossipmsg"
-	"github.com/1ykyk/rebro/gossip/internal/round"
+	"github.com/iykyk-syn/unison/rebro"
+	"github.com/iykyk-syn/unison/rebro/gossip/gossipmsg"
+	"github.com/iykyk-syn/unison/rebro/gossip/internal/round"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
@@ -164,12 +164,13 @@ func (bro *Broadcaster) broadcastGossip(ctx context.Context, setter func(gossipm
 }
 
 // deliverGossip delivers a PubSub gossip and reports its validity status
-func (bro *Broadcaster) deliverGossip(ctx context.Context, _ peer.ID, gossip *pubsub.Message) pubsub.ValidationResult {
+func (bro *Broadcaster) deliverGossip(ctx context.Context, _ peer.ID, gossip *pubsub.Message) (res pubsub.ValidationResult) {
 	defer func() {
 		// recover from potential panics caused by network gossips
 		err := recover()
 		if err != nil {
 			bro.log.ErrorContext(ctx, "deliver gossip panic", "err", err)
+			res = pubsub.ValidationReject
 		}
 	}()
 

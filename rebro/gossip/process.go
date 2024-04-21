@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/1ykyk/rebro"
-	"github.com/1ykyk/rebro/gossip/gossipmsg"
+	"github.com/iykyk-syn/unison/rebro"
+	"github.com/iykyk-syn/unison/rebro/gossip/gossipmsg"
 )
 
 func (bro *Broadcaster) processGossip(ctx context.Context, gsp gossipmsg.Gossip) error {

@@ -1,5 +1,20 @@
-# ReBro - Reliable Broadcast
-Rebro - is an asynchronous byzantine reliable quorum broadcast
+# Unison
+> Network nodes performing in unison!
+
+The Unison project is a collection of modular and reusable BFT consensus and broadcast technologies bundled together as 
+a full stack of protocols for scalable blockchain networks. Building large-scale BFT systems has been complex and 
+challenging in the last decade and Unison is a way to fix that. It's consensus stack that cleanly separates concerns and
+enables sophisticated applications to use only the protocols they need without giving up interoperability and 
+upgradeability.
+
+Philosophically, Unison stack draws inspiration from projects like LLVM and libp2p. Technically, Unison implements 
+protocols like [Narwhal](https://arxiv.org/pdf/2105.11827.pdf) and [Bullshark](https://arxiv.org/pdf/2201.05677.pdf) 
+with [Shoal](https://arxiv.org/pdf/2306.03058.pdf).
+
+Unison carefully defines low-level network primitives. The current up-to-date list is:
+* ReBro(Reliable Broadcast)
+* BaPl (Batch Pool)
+
 
 ## Design Goals
 
@@ -8,7 +23,10 @@ Rebro - is an asynchronous byzantine reliable quorum broadcast
   * Customizable asymmetric cryptography schemes and hash function
 * Clear separation between components. Each component should be individually scalable and, if necessary, deployed on 
 separate machines, a.k.a node sharding.
-* Future proving.
+* Future proving. The network should be able to resync from the very beginning yet be able to change crypto primitives
+in its lifespan. We use self-describing property to achieve that. All the crypto primitives will be commited together with 
+certain unique identifier of the primitive, so that future network iterations can identify which primitive is that to
+select correct verification algorithm. E.g. hash function or public-key cryptography scheme.
 * Minimal dependencies
 * Concurrency. Everything that can be concurrent is and in Golang that's automatically parallel.
 * Fully code Symmetry. In fact a lot of flexibility and design goals were achieved by following this principle.
@@ -22,6 +40,14 @@ around quorum and choose/decide as many validators as needed for them.
 statically configured to follow a concrete set. Node operators don't necessarily have to run a node for each network.
 To be more precise, network engineers could force operator to run fully independent host, but at that point it's their 
 decision and not software limitation.
+* Symmetry.
+
+## RoadMap
+
+* Narwhal-based transaction Data Availability System with casual ordering
+* Tendermint consensus running over Unison via CometBFT fork
+* Bullshark
+* Shoal
 
 ## FAQ
 
@@ -50,8 +76,8 @@ consideration, we settle on Cap’n Proto with the following rationale.
 
 #### Performance
 This is the main reason to use Cap’n Proto. ReBro aims for maximum throughput while allocations during serialization and 
-deserialization are major bottlenecks. Cap'n Proto addresses that by providing arena allocators and random in-place 
-field access from allocated buffers.
+deserialization are major bottlenecks. Cap'n Proto addresses that by providing arena allocators and random in-memory 
+field access from allocated buffers, so there is effectively no serialization and deserialization happening.
 
 #### Canonicalization
 Cap'n Proto has a well-defined and efficient [canonical form](https://capnproto.org/encoding.html#canonicalization) 
