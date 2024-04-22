@@ -23,18 +23,6 @@ type commitment struct {
 	quorum *quorum
 }
 
-func NewCommitment(msg Message, set *Includers, quorum *quorum) (*commitment, error) {
-	if err := msg.Validate(); err != nil {
-		return nil, err
-	}
-	return &commitment{
-		msg:          msg,
-		signatures:   make([]Signature, 0, set.Len()),
-		includersSet: set,
-		quorum:       quorum,
-	}, nil
-}
-
 func (c *commitment) Message() Message {
 	return c.msg
 }

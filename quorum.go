@@ -41,7 +41,7 @@ func (q *quorum) Add(msg Message) error {
 		return errors.New("commitment exists")
 	}
 
-	com, err := NewCommitment(msg, q.includers, q)
+	com, err := q.newCommitment(msg)
 	if err != nil {
 		return err
 	}
@@ -94,4 +94,13 @@ func (q *quorum) markAsCompleted(id string) bool {
 	q.completed = append(q.completed, comm)
 	delete(q.commitments, id)
 	return true
+}
+
+func (q *quorum) newCommitment(msg Message) (*commitment, error) {
+	return &commitment{
+		msg:          msg,
+		signatures:   make([]Signature, 0, q.includers.Len()),
+		includersSet: q.includers,
+		quorum:       q,
+	}, nil
 }
