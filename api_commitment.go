@@ -21,8 +21,8 @@ type Commitment interface {
 // It expects arbitrary number of new Commitments to be added until finalization is triggered.
 // The finalization conditions and quorums are implementation specific.
 type QuorumCommitment interface {
-	// Add constructs new Commitment from given the given message and adds it to the set
-	// performing necessary verification.
+	// Add constructs new Commitment from the given message and adds it to the set,
+	// after checking the round and the signer validity.
 	Add(Message) error
 	// Get retrieves particular Commitment by the MessageID of the committed MessageData.
 	Get(MessageID) (Commitment, bool)

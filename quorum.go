@@ -13,26 +13,19 @@ type quorum struct {
 
 	commitments map[string]Commitment
 	completed   []Commitment
-
-	completeCh chan string
 }
 
-func NewQuorum(ctx context.Context, r uint64, includers *Includers) *quorum {
+func NewQuorum(ctx context.Context, round uint64, includers *Includers) *quorum {
 	return &quorum{
 		ctx:         ctx,
 		includers:   includers,
-		round:       r,
+		round:       round,
 		commitments: make(map[string]Commitment),
 		completed:   make([]Commitment, 0),
-		completeCh:  make(chan string, includers.Len()), // buffered channel to make non-blocking write into it
 	}
 }
 
 func (q *quorum) Add(msg Message) error {
-	if err := msg.Validate(); err != nil {
-		return err
-	}
-
 	if msg.ID.Round() != q.round {
 		return errors.New("getting message from another round")
 	}
@@ -47,7 +40,7 @@ func (q *quorum) Add(msg Message) error {
 		return errors.New("commitment exists")
 	}
 
-	com, err := NewCommitment(msg, q.includers, q.completeCh)
+	com, err := NewCommitment(msg, q.includers, q)
 	if err != nil {
 		return err
 	}
@@ -77,21 +70,7 @@ func (q *quorum) List() []Commitment {
 }
 
 func (q *quorum) Finalize() (bool, error) {
-	minAmount := int(minRequiredAmount(int64(q.includers.Len())))
-	// TBD: lets wait 2/3+1 for now and then decide what should we do with other 1/3
-	for i := 0; i < minAmount; i++ {
-		select {
-		case <-q.ctx.Done():
-			return false, q.ctx.Err()
-		case id := <-q.completeCh:
-			if !q.markAsCompleted(id) {
-				// got one more confirmation that commitment was completed
-				i--
-			}
-		}
-	}
-	// TODO: aggregate signatures
-	return true, nil
+	return len(q.completed) >= q.includers.Len()*threshold, nil
 }
 
 func (q *quorum) markAsCompleted(id string) bool {

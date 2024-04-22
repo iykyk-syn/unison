@@ -5,6 +5,11 @@ import (
 	"errors"
 )
 
+var (
+	faultParameter = 1 / 3
+	threshold      = 2*faultParameter + 1
+)
+
 type commitment struct {
 	msg Message
 
@@ -13,10 +18,10 @@ type commitment struct {
 	includersSet *Includers
 	totalStake   int64
 
-	complete chan<- string
+	quorum *quorum
 }
 
-func NewCommitment(msg Message, set *Includers, complete chan<- string) (*commitment, error) {
+func NewCommitment(msg Message, set *Includers, quorum *quorum) (*commitment, error) {
 	if err := msg.Validate(); err != nil {
 		return nil, err
 	}
@@ -24,7 +29,7 @@ func NewCommitment(msg Message, set *Includers, complete chan<- string) (*commit
 		msg:          msg,
 		signatures:   make([]Signature, 0, set.Len()),
 		includersSet: set,
-		complete:     complete,
+		quorum:       quorum,
 	}, nil
 }
 
@@ -51,13 +56,9 @@ func (c *commitment) AddSignature(s Signature) (bool, error) {
 	c.signatures = append(c.signatures, s)
 	c.totalStake += includer.Stake
 
-	completed := c.totalStake >= minRequiredAmount(c.includersSet.TotalStake())
+	completed := c.totalStake >= c.includersSet.TotalStake()*int64(threshold)
 	if completed {
-		c.complete <- c.msg.ID.String()
+		c.quorum.markAsCompleted(c.msg.ID.String())
 	}
 	return completed, nil
-}
-
-func minRequiredAmount(amount int64) int64 {
-	return amount*2/3 + 1
 }
