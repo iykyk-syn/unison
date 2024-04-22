@@ -9,7 +9,7 @@ var (
 	faultParameter = 1 / 3
 	// threshold is a finalization rule for either a single commitment inside the quorum
 	// or the quorum itself.
-	threshold = 2*faultParameter + 1
+	stakeThreshold = 2*faultParameter + 1
 )
 
 type commitment struct {
@@ -58,7 +58,7 @@ func (c *commitment) AddSignature(s Signature) (bool, error) {
 	c.signatures = append(c.signatures, s)
 	c.totalStake += includer.Stake
 
-	completed := c.totalStake >= c.includersSet.TotalStake()*int64(threshold)
+	completed := c.totalStake >= c.includersSet.TotalStake()*int64(stakeThreshold)
 	if completed {
 		c.quorum.markAsCompleted(c.msg.ID.String())
 	}

@@ -33,7 +33,7 @@ type MessageID interface {
 	MarshalBinary() ([]byte, error)
 	// UnmarshalBinary deserializes MessageID from a series of bytes.
 	UnmarshalBinary([]byte) error
-
+	// Validate performs the basic validation messageID's properties before it will be used across the protocol.
 	Validate() error
 }
 

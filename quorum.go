@@ -3,6 +3,7 @@ package rebro
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 type quorum struct {
@@ -70,7 +71,19 @@ func (q *quorum) List() []Commitment {
 }
 
 func (q *quorum) Finalize() (bool, error) {
-	return len(q.completed) >= q.includers.Len()*threshold, nil
+	totalQuorumPower := int64(0)
+	for _, comm := range q.completed {
+		// no need to check for nil at this point as we can be sure that signer exists
+		signer := q.includers.GetByPubKey(comm.Message().ID.Signer())
+		totalQuorumPower = safeAddClip(totalQuorumPower, signer.Stake)
+		if totalQuorumPower > MaxStake {
+			panic(fmt.Sprintf(
+				"Total stake exceeds MaxStake: %v; got: %v",
+				MaxStake,
+				totalQuorumPower))
+		}
+	}
+	return totalQuorumPower >= q.includers.TotalStake()*int64(stakeThreshold), nil
 }
 
 func (q *quorum) markAsCompleted(id string) bool {

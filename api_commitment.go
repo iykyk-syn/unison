@@ -22,7 +22,7 @@ type Commitment interface {
 // The finalization conditions and quorums are implementation specific.
 type QuorumCommitment interface {
 	// Add constructs new Commitment from the given message and adds it to the set,
-	// after checking the round and the signer validity.
+	// after checking its round and signer validity.
 	Add(Message) error
 	// Get retrieves particular Commitment by the MessageID of the committed MessageData.
 	Get(MessageID) (Commitment, bool)

@@ -44,6 +44,10 @@ func (bro *Broadcaster) processData(ctx context.Context, gsp gossipmsg.Gossip) e
 		return fmt.Errorf("unmarhalling MessageID: %w", err)
 	}
 
+	if err = id.Validate(); err != nil {
+		return fmt.Errorf("validating MessageID: %w", err)
+	}
+
 	msg := rebro.Message{
 		ID:   id,
 		Data: data,
