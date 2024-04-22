@@ -14,16 +14,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
-// TODO: Pubsub ideas
-// * Autosubscribe if validator is registered
-// * sync.Pool messages for reuse
-// * Populate Message.LocalData when publishing messages
-// * Pass Publish context to local validation
-
-// TODO:
-//  * Add logging
-//  * Add metrics
-
 type Broadcaster struct {
 	networkID rebro.NetworkID
 

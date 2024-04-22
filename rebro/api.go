@@ -31,6 +31,8 @@ import (
 type Broadcaster interface {
 	// Broadcast broadcasts and delivers messages from quorum participants and signatures over them
 	// until QuorumCertificate is finalized.
+	// Broadcast takes full ownership over QuorumCertificate, and it must not be modified until
+	// Broadcast finishes execution.
 	Broadcast(context.Context, Message, QuorumCertificate) error
 }
 
