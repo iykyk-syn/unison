@@ -7,7 +7,9 @@ import (
 
 var (
 	faultParameter = 1 / 3
-	threshold      = 2*faultParameter + 1
+	// threshold is a finalization rule for either a single commitment inside the quorum
+	// or the quorum itself.
+	threshold = 2*faultParameter + 1
 )
 
 type commitment struct {
