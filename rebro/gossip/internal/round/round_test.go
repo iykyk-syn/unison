@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/iykyk-syn/unison/crypto"
 	"github.com/iykyk-syn/unison/rebro"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,11 +27,11 @@ func TestRound(t *testing.T) {
 	comm, err := r.GetCertificate(ctx, id)
 	require.NoError(t, err)
 	require.NotNil(t, comm)
-	err = r.AddSignature(ctx, id, rebro.Signature{})
+	err = r.AddSignature(ctx, id, crypto.Signature{})
 	require.NoError(t, err)
 	err = r.DeleteCertificate(ctx, id)
 	require.NoError(t, err)
-	err = r.AddSignature(ctx, id, rebro.Signature{})
+	err = r.AddSignature(ctx, id, crypto.Signature{})
 	require.Error(t, err)
 
 	// terminate the round
@@ -38,7 +39,7 @@ func TestRound(t *testing.T) {
 	require.NoError(t, err)
 
 	// ensure we get errors after stopping
-	err = r.AddSignature(ctx, id, rebro.Signature{})
+	err = r.AddSignature(ctx, id, crypto.Signature{})
 	require.Error(t, errClosedRound)
 	err = r.Stop(ctx)
 	require.Error(t, errClosedRound)
@@ -131,7 +132,7 @@ func TestRoundConcurrentAccess(t *testing.T) {
 				return err
 			}
 
-			err = r.AddSignature(ctx, id, rebro.Signature{})
+			err = r.AddSignature(ctx, id, crypto.Signature{})
 			if err != nil {
 				return err
 			}
@@ -179,7 +180,7 @@ func TestRoundFinalize(t *testing.T) {
 			return
 		}
 
-		err = r.AddSignature(ctx, id, rebro.Signature{})
+		err = r.AddSignature(ctx, id, crypto.Signature{})
 		if err != nil {
 			t.Error(err)
 			return
@@ -193,7 +194,7 @@ func TestRoundFinalize(t *testing.T) {
 	cancel()
 
 	// but after one more singature
-	err = r.AddSignature(ctx, id, rebro.Signature{})
+	err = r.AddSignature(ctx, id, crypto.Signature{})
 	if err != nil {
 		t.Error(err)
 		return
@@ -289,18 +290,18 @@ func (q *quorum) Finalize() (bool, error) {
 type certificate struct {
 	q    *quorum
 	msg  rebro.Message
-	sigs []rebro.Signature
+	sigs []crypto.Signature
 }
 
 func (c *certificate) Message() rebro.Message {
 	return c.msg
 }
 
-func (c *certificate) Signatures() []rebro.Signature {
+func (c *certificate) Signatures() []crypto.Signature {
 	return c.sigs
 }
 
-func (c *certificate) AddSignature(sig rebro.Signature) (bool, error) {
+func (c *certificate) AddSignature(sig crypto.Signature) (bool, error) {
 	c.sigs = append(c.sigs, sig)
 	return len(c.sigs) == 2, nil
 }

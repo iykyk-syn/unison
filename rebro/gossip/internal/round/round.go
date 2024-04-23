@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/iykyk-syn/unison/crypto"
 	"github.com/iykyk-syn/unison/rebro"
 )
 
@@ -191,7 +192,7 @@ func (r *Round) stateDelete(op *stateOp) {
 }
 
 // AddSignature appends a Signature to one of the [Round]'s Certificates.
-func (r *Round) AddSignature(ctx context.Context, id rebro.MessageID, sig rebro.Signature) error {
+func (r *Round) AddSignature(ctx context.Context, id rebro.MessageID, sig crypto.Signature) error {
 	op := newStateOp(addSignOp)
 	op.id = id
 	op.sig = &sig

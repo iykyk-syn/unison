@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	crypto2 "github.com/iykyk-syn/unison/crypto"
 	"github.com/iykyk-syn/unison/rebro"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
@@ -141,19 +142,19 @@ func newTestSigner() *testSigner {
 	}
 }
 
-func (t *testSigner) Sign(bytes []byte) (rebro.Signature, error) {
+func (t *testSigner) Sign(bytes []byte) (crypto2.Signature, error) {
 	sig, err := t.privkey.Sign(rand.Reader, bytes, crypto.Hash(0))
 	if err != nil {
-		return rebro.Signature{}, nil
+		return crypto2.Signature{}, nil
 	}
 
-	return rebro.Signature{
+	return crypto2.Signature{
 		Body:   sig,
 		Signer: t.privkey.Public().(ed25519.PublicKey),
 	}, nil
 }
 
-func (t *testSigner) Verify(bytes []byte, signature rebro.Signature) error {
+func (t *testSigner) Verify(bytes []byte, signature crypto2.Signature) error {
 	key := ed25519.PublicKey(signature.Signer)
 	ok := ed25519.Verify(key, bytes, signature.Body)
 	if !ok {
@@ -292,18 +293,18 @@ func (q *quorum) Finalize() (bool, error) {
 type certificate struct {
 	q    *quorum
 	msg  rebro.Message
-	sigs []rebro.Signature
+	sigs []crypto2.Signature
 }
 
 func (c *certificate) Message() rebro.Message {
 	return c.msg
 }
 
-func (c *certificate) Signatures() []rebro.Signature {
+func (c *certificate) Signatures() []crypto2.Signature {
 	return c.sigs
 }
 
-func (c *certificate) AddSignature(sig rebro.Signature) (bool, error) {
+func (c *certificate) AddSignature(sig crypto2.Signature) (bool, error) {
 	c.sigs = append(c.sigs, sig)
 	return len(c.sigs) == c.q.Threshold, nil
 }

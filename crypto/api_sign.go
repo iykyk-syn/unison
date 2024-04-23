@@ -1,4 +1,4 @@
-package rebro
+package crypto
 
 // Signature is a tuple containing signature body and reference to signing identity.
 type Signature struct {

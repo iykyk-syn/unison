@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/iykyk-syn/unison/crypto"
 	"github.com/iykyk-syn/unison/rebro"
 	"github.com/iykyk-syn/unison/rebro/gossip/gossipmsg"
 )
@@ -141,7 +142,7 @@ func (bro *Broadcaster) processSignature(ctx context.Context, gsp gossipmsg.Goss
 		return err
 	}
 
-	signature := rebro.Signature{
+	signature := crypto.Signature{
 		Body:   signatureData,
 		Signer: signerData,
 	}

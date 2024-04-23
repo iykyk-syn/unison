@@ -1,6 +1,7 @@
 package round
 
 import (
+	"github.com/iykyk-syn/unison/crypto"
 	"github.com/iykyk-syn/unison/rebro"
 )
 
@@ -20,9 +21,9 @@ type stateOp struct {
 	doneCh chan any
 
 	// request data:
-	msg *rebro.Message   // addOp
-	id  rebro.MessageID  // getOp or deleteOp
-	sig *rebro.Signature // addSignOp
+	msg *rebro.Message    // addOp
+	id  rebro.MessageID   // getOp or deleteOp
+	sig *crypto.Signature // addSignOp
 
 	// response data:
 	err  error             // addOp, deleteOp, addSignOp

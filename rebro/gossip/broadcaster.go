@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"capnproto.org/go/capnp/v3"
+	"github.com/iykyk-syn/unison/crypto"
 	"github.com/iykyk-syn/unison/rebro"
 	"github.com/iykyk-syn/unison/rebro/gossip/gossipmsg"
 	"github.com/iykyk-syn/unison/rebro/gossip/internal/round"
@@ -22,7 +23,7 @@ type Broadcaster struct {
 	topic  *pubsub.Topic
 	sub    *pubsub.Subscription
 
-	signer   rebro.Signer
+	signer   crypto.Signer
 	verifier rebro.Verifier
 	hasher   rebro.Hasher
 	decoder  rebro.MessageIDDecoder
@@ -31,7 +32,7 @@ type Broadcaster struct {
 }
 
 // NewBroadcaster instantiates a new gossiping [Broadcaster].
-func NewBroadcaster(networkID rebro.NetworkID, singer rebro.Signer, verifier rebro.Verifier, hasher rebro.Hasher, decoder rebro.MessageIDDecoder, ps *pubsub.PubSub) *Broadcaster {
+func NewBroadcaster(networkID rebro.NetworkID, singer crypto.Signer, verifier rebro.Verifier, hasher rebro.Hasher, decoder rebro.MessageIDDecoder, ps *pubsub.PubSub) *Broadcaster {
 	return &Broadcaster{
 		networkID: networkID,
 		rounds:    round.NewManager(),

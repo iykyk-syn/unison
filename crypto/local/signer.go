@@ -1,46 +1,46 @@
-package rebro
+package local
 
 import (
 	"errors"
 
-	"github.com/1ykyk/rebro/crypto"
-	"github.com/1ykyk/rebro/crypto/ed25519"
+	"github.com/iykyk-syn/unison/crypto"
+	"github.com/iykyk-syn/unison/crypto/ed25519"
 )
 
-type localSigner struct {
+type Signer struct {
 	privKey crypto.PrivKey
 	pubKey  crypto.PubKey
 }
 
-func NewSigner(privKey crypto.PrivKey) (*localSigner, error) {
+func NewSigner(privKey crypto.PrivKey) (*Signer, error) {
 	pubKey := privKey.PubKey()
 	if !privKey.PubKey().Equals(pubKey.Bytes()) {
 		return nil, errors.New("invalid pubKey received")
 	}
 
-	return &localSigner{
+	return &Signer{
 		privKey: privKey,
 		pubKey:  pubKey,
 	}, nil
 }
 
-func (s *localSigner) ID() []byte {
+func (s *Signer) ID() []byte {
 	return s.pubKey.Bytes()
 }
 
-func (s *localSigner) Sign(msg []byte) (Signature, error) {
+func (s *Signer) Sign(msg []byte) (crypto.Signature, error) {
 	signature, err := s.privKey.Sign(msg)
 	if err != nil {
-		return Signature{}, err
+		return crypto.Signature{}, err
 	}
 
-	return Signature{
+	return crypto.Signature{
 		Signer: s.ID(),
 		Body:   signature,
 	}, nil
 }
 
-func (s *localSigner) Verify(msg []byte, signature Signature) error {
+func (s *Signer) Verify(msg []byte, signature crypto.Signature) error {
 	pubK := ed25519.PublicKey(signature.Signer)
 	ok := pubK.VerifySignature(msg, signature.Body)
 	if !ok {
