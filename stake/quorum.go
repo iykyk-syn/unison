@@ -1,12 +1,20 @@
 package stake
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 
 	"github.com/iykyk-syn/unison/crypto"
 	"github.com/iykyk-syn/unison/rebro"
+)
+
+var (
+	faultParameter = 1 / 3
+	// threshold is a finalization rule for either a single certificate inside the Quorum
+	// or the Quorum itself.
+	stakeThreshold = 2*faultParameter + 1
 )
 
 type Quorum struct {
@@ -16,7 +24,7 @@ type Quorum struct {
 	round     uint64
 
 	certificates map[string]rebro.Certificate
-	completed    []rebro.Certificate
+	activeStake  int64
 }
 
 func NewQuorum(ctx context.Context, round uint64, includers *Includers) *Quorum {
@@ -24,8 +32,7 @@ func NewQuorum(ctx context.Context, round uint64, includers *Includers) *Quorum 
 		ctx:          ctx,
 		includers:    includers,
 		round:        round,
-		certificates: make(map[string]rebro.Certificate),
-		completed:    make([]rebro.Certificate, 0),
+		certificates: make(map[string]rebro.Certificate, includers.Len()),
 	}
 }
 
@@ -41,7 +48,7 @@ func (q *Quorum) Add(msg rebro.Message) error {
 
 	_, ok := q.certificates[msg.ID.String()]
 	if ok {
-		return errors.New("Certificate exists")
+		return errors.New("certificate exists")
 	}
 
 	cert, err := q.newCertificate(msg)
@@ -74,36 +81,48 @@ func (q *Quorum) List() []rebro.Certificate {
 }
 
 func (q *Quorum) Finalize() (bool, error) {
-	totalQuorumPower := int64(0)
-	for _, comm := range q.completed {
-		// no need to check for nil at this point as we can be sure that signer exists
-		signer := q.includers.GetByPubKey(comm.Message().ID.Signer())
-		totalQuorumPower = safeAddClip(totalQuorumPower, signer.Stake)
-		if totalQuorumPower > MaxStake {
+	finalized := q.activeStake >= q.includers.TotalStake()*int64(stakeThreshold)
+	return finalized, nil
+}
+
+func (q *Quorum) newCertificate(msg rebro.Message) (*certificate, error) {
+	return &certificate{
+		quorum:     q,
+		msg:        msg,
+		signatures: make([]crypto.Signature, 0, q.includers.Len()),
+	}, nil
+}
+
+func (q *Quorum) addSignature(s crypto.Signature, cert *certificate) (bool, error) {
+	includer := q.includers.GetByPubKey(s.Signer)
+	if includer == nil {
+		return false, errors.New("the signer is not a part of includers set")
+	}
+
+	for _, signature := range cert.signatures {
+		if bytes.Equal(signature.Signer, s.Signer) {
+			return false, errors.New("duplicate signature from the signer")
+		}
+	}
+
+	cert.signatures = append(cert.signatures, s)
+	cert.activeStake += includer.Stake
+	if cert.activeStake > MaxStake {
+		panic(fmt.Sprintf(
+			"Total stake exceeds MaxStake: %v; got: %v",
+			MaxStake,
+			q.activeStake))
+	}
+
+	completed := cert.activeStake >= q.includers.TotalStake()*int64(stakeThreshold)
+	if completed {
+		q.activeStake = safeAddClip(q.activeStake, includer.Stake)
+		if q.activeStake > MaxStake {
 			panic(fmt.Sprintf(
 				"Total stake exceeds MaxStake: %v; got: %v",
 				MaxStake,
-				totalQuorumPower))
+				q.activeStake))
 		}
 	}
-	return totalQuorumPower >= q.includers.TotalStake()*int64(stakeThreshold), nil
-}
-
-func (q *Quorum) markAsCompleted(id string) bool {
-	comm, ok := q.certificates[id]
-	if !ok {
-		return false
-	}
-	q.completed = append(q.completed, comm)
-	delete(q.certificates, id)
-	return true
-}
-
-func (q *Quorum) newCertificate(msg rebro.Message) (*Certificate, error) {
-	return &Certificate{
-		msg:          msg,
-		signatures:   make([]crypto.Signature, 0, q.includers.Len()),
-		includersSet: q.includers,
-		quorum:       q,
-	}, nil
+	return completed, nil
 }
