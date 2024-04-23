@@ -12,6 +12,8 @@ package rebro
 
 import (
 	"context"
+
+	"github.com/iykyk-syn/unison/crypto"
 )
 
 // Broadcaster reliably broadcasts, delivers and commits over messages. It verifies Messages
@@ -61,5 +63,5 @@ func (nid NetworkID) String() string {
 // Orchestrator orchestrates multiple Broadcaster instances.
 type Orchestrator interface {
 	// NewBroadcaster instantiates a new Broadcaster.
-	NewBroadcaster(NetworkID, Signer, Verifier, Hasher, MessageIDDecoder) (Broadcaster, error)
+	NewBroadcaster(NetworkID, crypto.Signer, Verifier, Hasher, MessageIDDecoder) (Broadcaster, error)
 }

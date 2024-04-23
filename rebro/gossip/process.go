@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/iykyk-syn/unison/crypto"
 	"github.com/iykyk-syn/unison/rebro"
 	"github.com/iykyk-syn/unison/rebro/gossip/gossipmsg"
 )
@@ -42,6 +43,10 @@ func (bro *Broadcaster) processData(ctx context.Context, gsp gossipmsg.Gossip) e
 	id, err := bro.decoder(canonicalID)
 	if err != nil {
 		return fmt.Errorf("unmarhalling MessageID: %w", err)
+	}
+
+	if err = id.Validate(); err != nil {
+		return fmt.Errorf("validating MessageID: %w", err)
 	}
 
 	msg := rebro.Message{
@@ -137,7 +142,7 @@ func (bro *Broadcaster) processSignature(ctx context.Context, gsp gossipmsg.Goss
 		return err
 	}
 
-	signature := rebro.Signature{
+	signature := crypto.Signature{
 		Body:   signatureData,
 		Signer: signerData,
 	}

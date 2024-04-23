@@ -1,18 +1,18 @@
 package rebro
 
+import "github.com/iykyk-syn/unison/crypto"
+
 // Certificate maintains a set of signatures/acknowledgements from a quorum certifying validity
 // of an arbitrary broadcasted message. Validity rules are not defined by Certificate and are an external concern.
 type Certificate interface {
 	// Message returns Message that Certificate attests to.
 	Message() Message
 	// Signatures provides list of all the signatures in the Certificate.
-	Signatures() []Signature
+	Signatures() []crypto.Signature
 	// AddSignature appends signature of a particular signer to the Certificate.
 	// Signature is expected to be verified beforehand.
 	// Reports true if enough signatures were collected for complete Certificate.
-	AddSignature(Signature) (bool, error)
-	// Quorum back-references QuorumCertificate the Certificate is attached to.
-	Quorum() QuorumCertificate
+	AddSignature(crypto.Signature) (bool, error)
 }
 
 // QuorumCertificate is a set data Certificates by a quorum. It accumulates data
