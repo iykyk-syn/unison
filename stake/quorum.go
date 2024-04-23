@@ -2,7 +2,6 @@ package stake
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 
@@ -18,29 +17,20 @@ var (
 )
 
 type Quorum struct {
-	ctx context.Context
-
 	includers *Includers
-	round     uint64
 
 	certificates map[string]rebro.Certificate
 	activeStake  int64
 }
 
-func NewQuorum(ctx context.Context, round uint64, includers *Includers) *Quorum {
+func NewQuorum(includers *Includers) *Quorum {
 	return &Quorum{
-		ctx:          ctx,
 		includers:    includers,
-		round:        round,
 		certificates: make(map[string]rebro.Certificate, includers.Len()),
 	}
 }
 
 func (q *Quorum) Add(msg rebro.Message) error {
-	if msg.ID.Round() != q.round {
-		return errors.New("getting message from another round")
-	}
-
 	signer := q.includers.GetByPubKey(msg.ID.Signer())
 	if signer == nil {
 		return errors.New("signer is not a part of the includers set")
