@@ -2,10 +2,10 @@
 > Consensus nodes performing in unison!
 
 The Unison project is a collection of modular and reusable BFT consensus and broadcast software primitives bundled 
-together as a full stack of protocols for scalable and modular blockchain networks. It's a consensus stack that cleanly 
-separates concerns aiming to scale-out them to the limit.
+together as a full stack of protocols for scalable and modular/lazy blockchain networks. It's a consensus stack that 
+cleanly separates concerns aiming to scale them out reliably.
 
-Philosophically, Unison stack draws inspiration from projects like LLVM and libp2p. Technologically, Unison implements 
+Philosophically, Unison stack draws inspiration from projects like LLVM and libp2p. Practically, Unison implements 
 protocols alike [Narwhal](https://arxiv.org/pdf/2105.11827.pdf), [Bullshark](https://arxiv.org/pdf/2201.05677.pdf) 
 with [Shoal](https://arxiv.org/pdf/2306.03058.pdf) and [Pilotfish](https://arxiv.org/abs/2401.16292).
 
@@ -28,8 +28,8 @@ select correct verification algorithm. E.g. hash function or public-key cryptogr
 * Minimal dependencies
 * Concurrency. Everything that can be concurrent is and in Golang that's automatically parallel.
 * Fully code Symmetry. In fact a lot of flexibility and design goals were achieved by following this principle.
-* Minimal golang footpring. The protocol should be PL agnostic
-* User-owned serialization. The protocol only defines it for internal messages, while all public types are intefaces
+* Minimal golang footprint. The protocol should be PL agnostic
+* User-owned serialization. The protocol only defines it for internal messages, while all public types are interfaces
 for which users can define serialization formats themselves. 
 * DAG-flavoured proposer-builder separation. The identity of the block owners can be decoupled from the block signers.
 * Ability to define PoS logic with deterministic or randomized or anonymous quorum. Applications can employ arbitrary rules
@@ -38,7 +38,10 @@ around quorum and choose/decide as many validators as needed for them.
 statically configured to follow a concrete set. Node operators don't necessarily have to run a node for each network.
 To be more precise, network engineers could force operator to run fully independent host, but at that point it's their 
 decision and not software limitation.
+  * Yet, networks should be able to interoperate while having full sovereignty over their design and primitives choices
+  And this is why we embrace self-describing data-types 
 * Symmetry.
+* Light Node/Client friendliness
 
 ## RoadMap
 
