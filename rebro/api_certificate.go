@@ -13,8 +13,6 @@ type Certificate interface {
 	// Signature is expected to be verified beforehand.
 	// Reports true if enough signatures were collected for complete Certificate.
 	AddSignature(crypto.Signature) (bool, error)
-	// Quorum back-references QuorumCertificate the Certificate is attached to.
-	Quorum() QuorumCertificate
 }
 
 // QuorumCertificate is a set data Certificates by a quorum. It accumulates data

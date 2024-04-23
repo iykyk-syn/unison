@@ -1,4 +1,4 @@
-package rebro
+package stake
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/1ykyk/rebro/crypto"
+	"github.com/iykyk-syn/unison/crypto"
 )
 
 // MaxStake - the maximum allowed stake.

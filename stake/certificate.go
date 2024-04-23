@@ -1,37 +1,40 @@
-package rebro
+package stake
 
 import (
 	"bytes"
 	"errors"
+
+	"github.com/iykyk-syn/unison/crypto"
+	"github.com/iykyk-syn/unison/rebro"
 )
 
 var (
 	faultParameter = 1 / 3
-	// threshold is a finalization rule for either a single commitment inside the quorum
-	// or the quorum itself.
+	// threshold is a finalization rule for either a single Certificate inside the Quorum
+	// or the Quorum itself.
 	stakeThreshold = 2*faultParameter + 1
 )
 
-type commitment struct {
-	msg Message
+type Certificate struct {
+	msg rebro.Message
 
-	signatures []Signature
+	signatures []crypto.Signature
 
 	includersSet *Includers
 	totalStake   int64
 
-	quorum *quorum
+	quorum *Quorum
 }
 
-func (c *commitment) Message() Message {
+func (c *Certificate) Message() rebro.Message {
 	return c.msg
 }
 
-func (c *commitment) Signatures() []Signature {
+func (c *Certificate) Signatures() []crypto.Signature {
 	return c.signatures
 }
 
-func (c *commitment) AddSignature(s Signature) (bool, error) {
+func (c *Certificate) AddSignature(s crypto.Signature) (bool, error) {
 	includer := c.includersSet.GetByPubKey(s.Signer)
 	if includer == nil {
 		return false, errors.New("the signer is not a part of includers set")

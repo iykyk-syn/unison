@@ -308,7 +308,3 @@ func (c *certificate) AddSignature(sig crypto2.Signature) (bool, error) {
 	c.sigs = append(c.sigs, sig)
 	return len(c.sigs) == c.q.Threshold, nil
 }
-
-func (c *certificate) Quorum() rebro.QuorumCertificate {
-	return c.q
-}
