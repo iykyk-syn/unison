@@ -7,6 +7,9 @@ import (
 	"log/slog"
 	"sync"
 
+	"capnproto.org/go/capnp/v3"
+	"github.com/iykyk-syn/unison/bapl/batchmsg"
+	"github.com/iykyk-syn/unison/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -22,18 +25,20 @@ type MulticastPool struct {
 	host      host.Host
 	includers FetchIncludersFn
 	verifier  BatchVerifier
+	signer    crypto.Signer
 
 	protocolID protocol.ID
 
 	log *slog.Logger
 }
 
-func NewMulticastPool(pool BatchPool, host host.Host, includers FetchIncludersFn, verifier BatchVerifier) *MulticastPool {
+func NewMulticastPool(pool BatchPool, host host.Host, includers FetchIncludersFn, signer crypto.Signer, verifier BatchVerifier) *MulticastPool {
 	return &MulticastPool{
 		pool:       pool,
 		host:       host,
 		includers:  includers,
 		verifier:   verifier,
+		signer:     signer,
 		protocolID: defaultProtocolID,
 	}
 }
@@ -55,6 +60,15 @@ func (p *MulticastPool) Stop() {
 }
 
 func (p *MulticastPool) Push(ctx context.Context, batch *Batch) error {
+	if batch.Signature.Body == nil {
+		sig, err := p.signer.Sign(batch.Data)
+		if err != nil {
+			return err
+		}
+
+		batch.Signature = sig
+	}
+
 	if err := p.pool.Push(ctx, batch); err != nil {
 		return err
 	}
@@ -70,6 +84,10 @@ func (p *MulticastPool) Pull(ctx context.Context, hash []byte) (*Batch, error) {
 	return p.pool.Pull(ctx, hash)
 }
 
+func (p *MulticastPool) ListByKey(ctx context.Context, bytes []byte) ([]*Batch, error) {
+	return p.pool.ListByKey(ctx, bytes)
+}
+
 func (p *MulticastPool) Delete(ctx context.Context, hash []byte) error {
 	return p.pool.Delete(ctx, hash)
 }
@@ -80,7 +98,6 @@ func (p *MulticastPool) Size(ctx context.Context) (int, error) {
 
 func (p *MulticastPool) multicastBatch(ctx context.Context, batch *Batch) error {
 	recipients := p.includers()
-
 	var wg sync.WaitGroup
 	wg.Add(len(recipients))
 	for _, r := range recipients {
@@ -113,14 +130,44 @@ func (p *MulticastPool) sendBatch(ctx context.Context, batch *Batch, to peer.ID)
 		}
 	}
 
-	if _, err = stream.Write(batch.Data); err != nil {
+	msgMsg, msgSegment, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return err
+	}
+
+	msg, err := batchmsg.NewRootBatch(msgSegment)
+	if err != nil {
+		return err
+	}
+
+	err = msg.SetData(batch.Data)
+	if err != nil {
+		return err
+	}
+
+	err = msg.Signature().SetSignature(batch.Signature.Body)
+	if err != nil {
+		return err
+	}
+
+	err = msg.Signature().SetSigner(batch.Signature.Signer)
+	if err != nil {
+		return err
+	}
+
+	bytes, err := msgMsg.Marshal()
+	if err != nil {
+		return err
+	}
+
+	if _, err = stream.Write(bytes); err != nil {
 		return fmt.Errorf("writing Batch to stream: %w", err)
 	}
 	if err = stream.CloseWrite(); err != nil {
 		return err
 	}
 	// await ack from the other side
-	if _, err = stream.Read(nil); err != nil && err != io.EOF {
+	if _, err = stream.Read([]byte{0}); err != nil && err != io.EOF {
 		return fmt.Errorf("awaiting acknowledgement: %w", err)
 	}
 
@@ -134,12 +181,41 @@ func (p *MulticastPool) rcvBatch(s network.Stream) error {
 	if err != nil {
 		return fmt.Errorf("reading Batch: %w", err)
 	}
+
+	msgMsg, err := capnp.Unmarshal(batchData)
+	if err != nil {
+		return err
+	}
+
+	msg, err := batchmsg.ReadRootBatch(msgMsg)
+	if err != nil {
+		return err
+	}
+
 	// ack other side that we are done by closing the stream
 	if err = s.Close(); err != nil {
 		return fmt.Errorf("closing Stream: %w", err)
 	}
 
-	batch := &Batch{Data: batchData}
+	batch := &Batch{Signature: crypto.Signature{}}
+	batch.Data, err = msg.Data()
+	if err != nil {
+		return err
+	}
+	batch.Signature.Body, err = msg.Signature().Signature()
+	if err != nil {
+		return err
+	}
+	batch.Signature.Signer, err = msg.Signature().Signer()
+	if err != nil {
+		return err
+	}
+
+	// TODO: Must also verify the Singer is the set of active validators
+	err = p.signer.Verify(batch.Data, batch.Signature)
+	if err != nil {
+		return err
+	}
 
 	ok, err := p.verifier.Verify(context.TODO(), batch)
 	if err != nil {
