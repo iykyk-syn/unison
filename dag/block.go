@@ -16,7 +16,15 @@ type Block struct {
 	Parents       [][]byte // hashes of the blocks from prev round
 }
 
-func NewBlock(id *blockID, batches []*bapl.Batch, parents [][]byte) *Block {
+func NewBlock(
+	round uint64,
+	singer []byte,
+	idHash []byte,
+	batches []*bapl.Batch,
+	parents [][]byte,
+) *Block {
+	id := &blockID{round: round, signer: singer, hash: idHash}
+
 	hashes := make([][]byte, len(batches))
 	for i := range batches {
 		hashes[i] = batches[i].Hash()
