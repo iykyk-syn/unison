@@ -1,6 +1,7 @@
 package dag
 
 import (
+	"crypto/sha256"
 	"fmt"
 
 	"capnproto.org/go/capnp/v3"
@@ -21,6 +22,12 @@ func NewBlock(id *blockID, batches []*bapl.Batch, parents [][]byte) *Block {
 		hashes[i] = batches[i].Hash()
 	}
 	return &Block{id: id, BatchesDigest: hashes, Parents: parents}
+}
+
+func (b *Block) Hash() []byte {
+	h := sha256.New()
+	h.Write(b.id.hash)
+	return h.Sum(nil)
 }
 
 type blockID struct {
