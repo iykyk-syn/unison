@@ -1,4 +1,4 @@
-package block
+package dag
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"capnproto.org/go/capnp/v3"
 
 	"github.com/iykyk-syn/unison/bapl"
-	block_id "github.com/iykyk-syn/unison/block/proto"
+	block_id "github.com/iykyk-syn/unison/dag/proto"
 )
 
 type Block struct {
