@@ -82,7 +82,7 @@ func (p *MemPool) Pull(ctx context.Context, hash []byte) (*Batch, error) {
 	}
 }
 
-func (p *MemPool) ListByKey(_ context.Context, key []byte) ([]*Batch, error) {
+func (p *MemPool) ListBySigner(_ context.Context, key []byte) ([]*Batch, error) {
 	p.batchesMu.Lock()
 	defer p.batchesMu.Unlock()
 

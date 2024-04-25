@@ -22,7 +22,7 @@ func (b *Batch) Hash() []byte {
 type BatchPool interface {
 	Push(context.Context, *Batch) error
 	Pull(context.Context, []byte) (*Batch, error)
-	ListByKey(context.Context, []byte) ([]*Batch, error)
+	ListBySigner(context.Context, []byte) ([]*Batch, error)
 	Delete(context.Context, []byte) error
 	Size(context.Context) (int, error)
 }

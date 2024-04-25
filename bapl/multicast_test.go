@@ -41,7 +41,7 @@ func TestMulticastPool(t *testing.T) {
 	}
 
 	for _, p := range pools {
-		byKey, err := p.ListByKey(ctx, p.signer.ID())
+		byKey, err := p.ListBySigner(ctx, p.signer.ID())
 		require.NoError(t, err)
 		require.Len(t, byKey, 1)
 

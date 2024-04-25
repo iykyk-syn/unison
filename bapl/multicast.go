@@ -84,8 +84,8 @@ func (p *MulticastPool) Pull(ctx context.Context, hash []byte) (*Batch, error) {
 	return p.pool.Pull(ctx, hash)
 }
 
-func (p *MulticastPool) ListByKey(ctx context.Context, bytes []byte) ([]*Batch, error) {
-	return p.pool.ListByKey(ctx, bytes)
+func (p *MulticastPool) ListBySigner(ctx context.Context, bytes []byte) ([]*Batch, error) {
+	return p.pool.ListBySigner(ctx, bytes)
 }
 
 func (p *MulticastPool) Delete(ctx context.Context, hash []byte) error {
@@ -211,7 +211,7 @@ func (p *MulticastPool) rcvBatch(s network.Stream) error {
 		return err
 	}
 
-	// TODO: Must also verify the Singer is the set of active validators
+	// TODO: Must also verify the Signer is the set of active of includer
 	err = p.signer.Verify(batch.Data, batch.Signature)
 	if err != nil {
 		return err
