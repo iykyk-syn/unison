@@ -1,9 +1,14 @@
 package bapl
 
 import (
+	"bytes"
 	"context"
 	"sync"
 )
+
+// TODO needs:
+//  * GC
+//  *
 
 type MemPool struct {
 	batchesMu   sync.Mutex
@@ -75,6 +80,21 @@ func (p *MemPool) Pull(ctx context.Context, hash []byte) (*Batch, error) {
 		p.batchesMu.Unlock()
 		return nil, ctx.Err()
 	}
+}
+
+func (p *MemPool) ListBySigner(_ context.Context, key []byte) ([]*Batch, error) {
+	p.batchesMu.Lock()
+	defer p.batchesMu.Unlock()
+
+	// TODO: Rework data structure to be O(1)
+	var batches []*Batch
+	for _, b := range p.batches {
+		if bytes.Equal(b.Signature.Signer, key) {
+			batches = append(batches, b)
+		}
+	}
+
+	return batches, nil
 }
 
 func (p *MemPool) Delete(_ context.Context, hash []byte) error {

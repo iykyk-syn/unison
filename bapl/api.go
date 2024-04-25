@@ -4,10 +4,13 @@ package bapl
 import (
 	"context"
 	"crypto/sha256"
+
+	"github.com/iykyk-syn/unison/crypto"
 )
 
 type Batch struct {
-	Data []byte
+	Data      []byte
+	Signature crypto.Signature
 }
 
 func (b *Batch) Hash() []byte {
@@ -19,6 +22,7 @@ func (b *Batch) Hash() []byte {
 type BatchPool interface {
 	Push(context.Context, *Batch) error
 	Pull(context.Context, []byte) (*Batch, error)
+	ListBySigner(context.Context, []byte) ([]*Batch, error)
 	Delete(context.Context, []byte) error
 	Size(context.Context) (int, error)
 }
