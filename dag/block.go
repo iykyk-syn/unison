@@ -11,8 +11,7 @@ import (
 )
 
 type Block struct {
-	round   uint64
-	signer  []byte
+	blockID *blockID
 	batches [][]byte // hashes of all local batches that will be included in the block
 	parents [][]byte // hashes of the blocks from prev round
 }
@@ -27,25 +26,32 @@ func NewBlock(
 	for i := range batches {
 		hashes[i] = batches[i].Hash()
 	}
-	return &Block{round: round, signer: singer, batches: hashes, parents: parents}
+
+	id := &blockID{round: round, signer: singer}
+	return &Block{blockID: id, batches: hashes, parents: parents}
 }
 
 func (b *Block) Hash() []byte {
+	if b.blockID.hash != nil {
+		return b.blockID.hash
+	}
+
 	bin, err := b.MarshalBinary()
 	if err != nil {
 		panic(err)
 	}
 	h := sha256.New()
 	h.Write(bin)
-	return h.Sum(nil)
+	b.blockID.hash = h.Sum(nil)
+	return b.blockID.hash
 }
 
 func (b *Block) Round() uint64 {
-	return b.round
+	return b.blockID.round
 }
 
 func (b *Block) Signer() []byte {
-	return b.signer
+	return b.blockID.hash
 }
 
 func (b *Block) String() string {
@@ -63,16 +69,18 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 		return nil, fmt.Errorf("converting segment to message id:%v", err)
 	}
 
-	block.SetRound(b.round)
-	block.SetSigner(b.signer)
+	block.SetRound(b.blockID.round)
+	block.SetSigner(b.blockID.signer)
 	bList, err := block.NewBatches(int32(len(b.batches)))
 	if err != nil {
 		return nil, err
 	}
+
 	for i, batch := range b.batches {
 		bList.Set(i, batch)
 	}
 	block.SetBatches(bList)
+
 	pList, err := block.NewParents(int32(len(b.parents)))
 	for i, pp := range b.parents {
 		pList.Set(i, pp)
@@ -92,8 +100,8 @@ func (b *Block) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("converting received binary data to messageID: %v", err)
 	}
 
-	b.round = block.Round()
-	b.signer, err = block.Signer()
+	b.blockID.round = block.Round()
+	b.blockID.signer, err = block.Signer()
 	batchList, err := block.Batches()
 	if err != nil {
 		return err
