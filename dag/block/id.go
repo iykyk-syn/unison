@@ -5,7 +5,7 @@ import (
 
 	"capnproto.org/go/capnp/v3"
 
-	block "github.com/iykyk-syn/unison/dag/proto"
+	block "github.com/iykyk-syn/unison/dag/block/proto"
 )
 
 type blockID struct {

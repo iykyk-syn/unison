@@ -7,7 +7,7 @@ import (
 	"capnproto.org/go/capnp/v3"
 
 	"github.com/iykyk-syn/unison/bapl"
-	block "github.com/iykyk-syn/unison/dag/proto"
+	block "github.com/iykyk-syn/unison/dag/block/proto"
 )
 
 type Block struct {
@@ -29,6 +29,10 @@ func NewBlock(
 
 	id := &blockID{round: round, signer: singer}
 	return &Block{blockID: id, batches: hashes, parents: parents}
+}
+
+func (b *Block) ID() *blockID {
+	return b.blockID
 }
 
 func (b *Block) Hash() []byte {
