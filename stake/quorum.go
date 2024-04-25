@@ -65,7 +65,9 @@ func (q *Quorum) Delete(id rebro.MessageID) bool {
 func (q *Quorum) List() []rebro.Certificate {
 	comms := make([]rebro.Certificate, 0, len(q.certificates))
 	for _, comm := range q.certificates {
-		comms = append(comms, comm)
+		if comm.Completed() {
+			comms = append(comms, comm)
+		}
 	}
 	return comms
 }
@@ -113,6 +115,7 @@ func (q *Quorum) addSignature(s crypto.Signature, cert *certificate) (bool, erro
 				MaxStake,
 				q.activeStake))
 		}
+		cert.completed = true
 	}
 	return completed, nil
 }

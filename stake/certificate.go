@@ -11,6 +11,7 @@ type certificate struct {
 	msg         rebro.Message
 	signatures  []crypto.Signature
 	activeStake int64
+	completed   bool
 }
 
 func (c *certificate) Message() rebro.Message {
@@ -23,4 +24,8 @@ func (c *certificate) Signatures() []crypto.Signature {
 
 func (c *certificate) AddSignature(s crypto.Signature) (bool, error) {
 	return c.quorum.addSignature(s, c)
+}
+
+func (c *certificate) Completed() bool {
+	return c.completed
 }

@@ -13,6 +13,8 @@ type Certificate interface {
 	// Signature is expected to be verified beforehand.
 	// Reports true if enough signatures were collected for complete Certificate.
 	AddSignature(crypto.Signature) (bool, error)
+	// Completed returns whether the finalization conditions for Certificate were met.
+	Completed() bool
 }
 
 // QuorumCertificate is a set data Certificates by a quorum. It accumulates data
@@ -30,7 +32,7 @@ type QuorumCertificate interface {
 	Get(MessageID) (Certificate, bool)
 	// Delete deletes Certificate by the MessageID of the committed MessageData.
 	Delete(MessageID) bool
-	// List provides all the Certificates in the QuorumCertificate.
+	// List provides all completed Certificates in the QuorumCertificate.
 	List() []Certificate
 	// Finalize attempts to finalize the QuorumCertificate.
 	// It reports whether the finalization conditions were met.
