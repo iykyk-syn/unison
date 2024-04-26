@@ -2,12 +2,15 @@ package poc
 
 import (
 	"context"
+	"crypto/rand"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/host"
-	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	bhost "github.com/libp2p/go-libp2p/p2p/host/blank"
+	swarmt "github.com/libp2p/go-libp2p/p2p/net/swarm/testing"
+	"github.com/libp2p/go-libp2p/p2p/protocol/identify"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,25 +23,52 @@ func TestBootstrap(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(cancel)
 
-	net, err := mocknet.FullMeshConnected(nodeCount)
-	require.NoError(t, err)
-	hosts := net.Hosts()
+	hosts := make([]host.Host, nodeCount)
+	keys := make([][]byte, nodeCount)
+	for i := range nodeCount {
+		randKey := make([]byte, 32)
+		rand.Reader.Read(randKey)
+		keys[i] = randKey
+		hosts[i] = testHost(t, randKey)
+	}
 
 	bootstrapper := *host.InfoFromHost(hosts[0])
-	ServeBootstrap(hosts[0])
+
+	svcs := make([]*BootstrapSvc, nodeCount)
+	for i, h := range hosts {
+		svcs[i] = NewBootstrapSvc(keys[i], h, bootstrapper, nodeCount)
+	}
 
 	var wg sync.WaitGroup
-	for _, h := range hosts[1:] {
+	svcs[0].Serve()
+	for _, svc := range svcs[1:] {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := Bootstrap(ctx, h, bootstrapper)
+			err := svc.Start(ctx)
 			assert.NoError(t, err)
 		}()
 	}
 
 	wg.Wait()
+	time.Sleep(time.Second * 1)
 	for _, h := range hosts {
-		require.Len(t, h.Network().Peers(), nodeCount-1)
+		assert.Len(t, h.Network().Peers(), nodeCount-1)
 	}
+
+	for _, svc := range svcs[1:] {
+		incls, err := svc.GetMembers()
+		require.NoError(t, err)
+		assert.Equal(t, incls.Len(), nodeCount)
+		assert.EqualValues(t, incls.TotalStake(), nodeCount*defaultStake)
+	}
+}
+
+func testHost(t *testing.T, key []byte) host.Host {
+	netw := swarmt.GenSwarm(t)
+	h := bhost.NewBlankHost(netw)
+	id, err := identify.NewIDService(h, identify.UserAgent(string(key)))
+	require.NoError(t, err)
+	id.Start()
+	return h
 }

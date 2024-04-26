@@ -6,7 +6,7 @@ import (
 	"crypto/rand"
 	"errors"
 
-	"github.com/1ykyk/rebro/crypto"
+	"github.com/iykyk-syn/unison/crypto"
 )
 
 const (
