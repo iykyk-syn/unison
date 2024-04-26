@@ -11,6 +11,7 @@ type certificate struct {
 	msg         rebro.Message
 	signatures  []crypto.Signature
 	activeStake int64
+	completed   bool
 }
 
 func (c *certificate) Message() rebro.Message {

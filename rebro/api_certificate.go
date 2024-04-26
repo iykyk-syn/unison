@@ -30,7 +30,7 @@ type QuorumCertificate interface {
 	Get(MessageID) (Certificate, bool)
 	// Delete deletes Certificate by the MessageID of the committed MessageData.
 	Delete(MessageID) bool
-	// List provides all the Certificates in the QuorumCertificate.
+	// List provides all completed Certificates in the QuorumCertificate.
 	List() []Certificate
 	// Finalize attempts to finalize the QuorumCertificate.
 	// It reports whether the finalization conditions were met.
