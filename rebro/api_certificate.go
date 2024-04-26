@@ -13,8 +13,6 @@ type Certificate interface {
 	// Signature is expected to be verified beforehand.
 	// Reports true if enough signatures were collected for complete Certificate.
 	AddSignature(crypto.Signature) (bool, error)
-	// Completed returns whether the finalization conditions for Certificate were met.
-	Completed() bool
 }
 
 // QuorumCertificate is a set data Certificates by a quorum. It accumulates data

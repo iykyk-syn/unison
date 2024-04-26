@@ -19,14 +19,14 @@ var (
 type Quorum struct {
 	includers *Includers
 
-	certificates map[string]rebro.Certificate
+	certificates map[string]*certificate
 	activeStake  int64
 }
 
 func NewQuorum(includers *Includers) *Quorum {
 	return &Quorum{
 		includers:    includers,
-		certificates: make(map[string]rebro.Certificate, includers.Len()),
+		certificates: make(map[string]*certificate, includers.Len()),
 	}
 }
 
@@ -65,7 +65,7 @@ func (q *Quorum) Delete(id rebro.MessageID) bool {
 func (q *Quorum) List() []rebro.Certificate {
 	comms := make([]rebro.Certificate, 0, len(q.certificates))
 	for _, comm := range q.certificates {
-		if comm.Completed() {
+		if comm.completed {
 			comms = append(comms, comm)
 		}
 	}

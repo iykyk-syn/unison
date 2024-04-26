@@ -25,7 +25,3 @@ func (c *certificate) Signatures() []crypto.Signature {
 func (c *certificate) AddSignature(s crypto.Signature) (bool, error) {
 	return c.quorum.addSignature(s, c)
 }
-
-func (c *certificate) Completed() bool {
-	return c.completed
-}
