@@ -10,10 +10,8 @@ import (
 )
 
 var (
-	faultParameter = 1 / 3
-	// threshold is a finalization rule for either a single certificate inside the Quorum
-	// or the Quorum itself.
-	stakeThreshold = 2*faultParameter + 1
+	faultDenominator int64 = 3
+	faultNumerator   int64 = 2
 )
 
 type Quorum struct {
@@ -73,7 +71,7 @@ func (q *Quorum) List() []rebro.Certificate {
 }
 
 func (q *Quorum) Finalize() (bool, error) {
-	finalized := q.activeStake >= q.includers.TotalStake()*int64(stakeThreshold)
+	finalized := q.activeStake >= q.stakeRequired()
 	return finalized, nil
 }
 
@@ -106,7 +104,7 @@ func (q *Quorum) addSignature(s crypto.Signature, cert *certificate) (bool, erro
 			q.activeStake))
 	}
 
-	completed := cert.activeStake >= q.includers.TotalStake()*int64(stakeThreshold)
+	completed := cert.activeStake >= q.stakeRequired()
 	if completed {
 		q.activeStake = safeAddClip(q.activeStake, includer.Stake)
 		if q.activeStake > MaxStake {
@@ -118,4 +116,8 @@ func (q *Quorum) addSignature(s crypto.Signature, cert *certificate) (bool, erro
 		cert.completed = true
 	}
 	return completed, nil
+}
+
+func (q *Quorum) stakeRequired() int64 {
+	return q.includers.TotalStake()*faultNumerator/faultDenominator + 1
 }
