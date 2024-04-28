@@ -22,7 +22,7 @@ type Chain struct {
 	includers   IncludersFn
 	signerID    crypto.PubKey
 
-	round      uint64
+	height     uint64
 	lastQuorum rebro.QuorumCertificate
 
 	log    *slog.Logger
@@ -40,7 +40,7 @@ func NewChain(
 		batchPool:   pool,
 		includers:   includers,
 		signerID:    signerID,
-		round:       1, // must start from 1
+		height:      1, // must start from 1
 		log:         slog.With("module", "dagger"),
 	}
 }
@@ -73,8 +73,8 @@ func (c *Chain) run(ctx context.Context) {
 // startRound assembles a new block and broadcasts it across the network.
 //
 // assembling stages:
-// * collect block hashes from last round as parent hashes
-// * cleanup batches commited in blocks from last round
+// * collect block hashes from last height as parent hashes
+// * cleanup batches commited in blocks from last height
 // * prepare the new uncommited batches
 // * create a block from the batches and the parents hashes;
 // * propagate the block and wait until quorum is reached;
@@ -100,18 +100,18 @@ func (c *Chain) startRound(ctx context.Context) error {
 
 	newBatches, err := c.batchPool.ListBySigner(ctx, c.signerID.Bytes())
 	if err != nil {
-		return fmt.Errorf("can't get batches for the new round:%w", err)
+		return fmt.Errorf("can't get batches for the new height:%w", err)
 	}
 
 	// TODO: certificate signatures should be the part of the block.
-	blk := block.NewBlock(c.round, c.signerID.Bytes(), newBatches, parents)
+	blk := block.NewBlock(c.height, c.signerID.Bytes(), newBatches, parents)
 	blk.Hash() // TODO: Compute in constructor
 	data, err := blk.MarshalBinary()
 	if err != nil {
 		return err
 	}
 
-	includers, err := c.includers(c.round)
+	includers, err := c.includers(c.height)
 	if err != nil {
 		return err
 	}
@@ -122,9 +122,9 @@ func (c *Chain) startRound(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.log.InfoContext(ctx, "finished round", "round", c.round, "batches", len(newBatches), "parents", len(parents))
+	c.log.InfoContext(ctx, "finished round", "height", c.height, "batches", len(newBatches), "parents", len(parents))
 
-	c.round++
+	c.height++
 	c.lastQuorum = qrm
 	return nil
 }
