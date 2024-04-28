@@ -23,8 +23,7 @@ type Dagger struct {
 	batchPool   bapl.BatchPool
 	includers   IncludersFn
 
-	signerID     crypto.PubKey
-	blockTimeout time.Duration
+	signerID crypto.PubKey
 
 	round      uint64
 	lastQuorum rebro.QuorumCertificate
@@ -38,16 +37,14 @@ func NewDagger(
 	pool bapl.BatchPool,
 	includers IncludersFn,
 	signerID crypto.PubKey,
-	blockTimeout time.Duration,
 ) *Dagger {
 	return &Dagger{
-		broadcaster:  broadcaster,
-		batchPool:    pool,
-		includers:    includers,
-		signerID:     signerID,
-		blockTimeout: blockTimeout,
-		round:        1, // must start from 1
-		log:          slog.With("module", "dagger"),
+		broadcaster: broadcaster,
+		batchPool:   pool,
+		includers:   includers,
+		signerID:    signerID,
+		round:       1, // must start from 1
+		log:         slog.With("module", "dagger"),
 	}
 }
 
@@ -66,14 +63,6 @@ func (d *Dagger) Stop() {
 // run is indefinitely producing new blocks and propagates them across the network
 func (d *Dagger) run(ctx context.Context) {
 	for ctx.Err() == nil {
-		if d.blockTimeout != 0 {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(d.blockTimeout):
-			}
-		}
-
 		err := d.startRound(ctx)
 		if err != nil {
 			d.log.ErrorContext(ctx, "executing round", "reason", err)
