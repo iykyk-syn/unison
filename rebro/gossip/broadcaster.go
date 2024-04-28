@@ -18,6 +18,8 @@ import (
 	"github.com/iykyk-syn/unison/rebro/gossip/internal/round"
 )
 
+var ValidationTimeout = time.Second * 30
+
 type Broadcaster struct {
 	networkID rebro.NetworkID
 
@@ -72,7 +74,7 @@ func (bro *Broadcaster) Start() (err error) {
 	err = bro.pubsub.RegisterTopicValidator(
 		bro.networkID.String(),
 		bro.deliverGossip,
-		pubsub.WithValidatorTimeout(time.Second),
+		pubsub.WithValidatorTimeout(ValidationTimeout),
 	)
 	if err != nil {
 		return err
