@@ -3,7 +3,9 @@ package gossip
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"time"
 
 	"capnproto.org/go/capnp/v3"
@@ -41,14 +43,11 @@ func NewBroadcaster(networkID rebro.NetworkID, singer crypto.Signer, verifier re
 		verifier:  verifier,
 		hasher:    hasher,
 		decoder:   decoder,
+		log:       slog.With("module", "broadcaster"),
 	}
 }
 
 func (bro *Broadcaster) Start() (err error) {
-	if bro.log == nil {
-		bro.log = slog.Default()
-	}
-
 	// TODO(@Wondartan): versioning for topic
 	bro.topic, err = bro.pubsub.Join(bro.networkID.String())
 	if err != nil {
@@ -161,6 +160,7 @@ func (bro *Broadcaster) deliverGossip(ctx context.Context, _ peer.ID, gossip *pu
 		err := recover()
 		if err != nil {
 			bro.log.ErrorContext(ctx, "deliver gossip panic", "err", err)
+			fmt.Println(debug.Stack())
 			res = pubsub.ValidationReject
 		}
 	}()

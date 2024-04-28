@@ -23,8 +23,6 @@ import (
 )
 
 func TestBroadcaster(t *testing.T) {
-	// logging.SetDebugLogging()
-	// slog.SetDefault()
 	const (
 		nodeCount     = 10
 		roundCount    = 10

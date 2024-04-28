@@ -40,6 +40,7 @@ func NewMulticastPool(pool BatchPool, host host.Host, includers FetchIncludersFn
 		verifier:   verifier,
 		signer:     signer,
 		protocolID: defaultProtocolID,
+		log:        slog.With("module", "mcast-pool"),
 	}
 }
 
@@ -49,10 +50,6 @@ func (p *MulticastPool) Start() {
 			p.log.Error("receiving Batch", "err", err)
 		}
 	})
-
-	if p.log == nil {
-		p.log = slog.Default()
-	}
 }
 
 func (p *MulticastPool) Stop() {
