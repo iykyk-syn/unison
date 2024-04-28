@@ -39,7 +39,6 @@ var (
 	kickoffTimeout time.Duration
 	batchSize      int
 	batchTime      time.Duration
-	blockTimeout   time.Duration
 )
 
 func init() {
@@ -48,7 +47,6 @@ func init() {
 	flag.DurationVar(&kickoffTimeout, "kickoff-timeout", time.Second*5, "Timeout before starting block production")
 	flag.IntVar(&batchSize, "batch-size", 1000*125, "Batch size to be produced every 'batch-time' (bytes). 0 disables batch production")
 	flag.DurationVar(&batchTime, "batch-time", time.Second, "Batch production time")
-	flag.DurationVar(&blockTimeout, "block-time", 0, "Adds additional time before producing new block")
 	flag.Parse()
 
 	slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -151,7 +149,7 @@ func run(ctx context.Context) error {
 		return ctx.Err()
 	}
 
-	dagger := dag.NewDagger(broadcaster, mcastPool, bootstrap.GetMembers, privKey.PubKey(), blockTimeout)
+	dagger := dag.NewDagger(broadcaster, mcastPool, bootstrap.GetMembers, privKey.PubKey())
 	dagger.Start()
 	defer dagger.Stop()
 
