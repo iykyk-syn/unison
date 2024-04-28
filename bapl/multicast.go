@@ -50,6 +50,7 @@ func (p *MulticastPool) Start() {
 			p.log.Error("receiving Batch", "err", err)
 		}
 	})
+	p.log.Debug("started")
 }
 
 func (p *MulticastPool) Stop() {
@@ -95,6 +96,10 @@ func (p *MulticastPool) Size(ctx context.Context) (int, error) {
 
 func (p *MulticastPool) multicastBatch(ctx context.Context, batch *Batch) error {
 	recipients := p.includers()
+	if len(recipients) == 0 {
+		return nil
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(len(recipients))
 	for _, r := range recipients {

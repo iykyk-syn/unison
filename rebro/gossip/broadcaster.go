@@ -78,6 +78,7 @@ func (bro *Broadcaster) Start() (err error) {
 		return err
 	}
 
+	bro.log.Debug("started")
 	return nil
 }
 

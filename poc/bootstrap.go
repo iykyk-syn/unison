@@ -82,6 +82,7 @@ func (b *BootstrapSvc) Start(ctx context.Context, bootstrapper peer.AddrInfo) er
 		}()
 	}
 
+	b.log.Debug("started")
 	return nil
 }
 
