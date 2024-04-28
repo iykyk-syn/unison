@@ -38,7 +38,7 @@ type Broadcaster interface {
 	Broadcast(context.Context, Message, QuorumCertificate) error
 }
 
-// Certifier performs application specific message stateful verification.
+// Certifier performs application-specific stateful certification of messages. 
 // It used by Broadcaster during broadcasting rounds.
 type Certifier interface {
 	// Certify executes verification of every Message delivered to QuorumCertificate
