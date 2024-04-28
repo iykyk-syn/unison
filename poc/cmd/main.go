@@ -76,7 +76,20 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	host, err := libp2p.New(libp2p.Identity(p2pKey))
+	listenAddrs := []string{
+		"/ip4/0.0.0.0/udp/10000/quic-v1",
+		"/ip6/::/udp/10000/quic-v1",
+	}
+	listenMAddrs := make([]multiaddr.Multiaddr, 0, len(listenAddrs))
+	for _, s := range listenAddrs {
+		addr, err := multiaddr.NewMultiaddr(s)
+		if err != nil {
+			return err
+		}
+		listenMAddrs = append(listenMAddrs, addr)
+	}
+
+	host, err := libp2p.New(libp2p.Identity(p2pKey), libp2p.ListenAddrs(listenMAddrs...))
 	if err != nil {
 		return err
 	}
