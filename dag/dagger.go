@@ -2,7 +2,6 @@ package dag
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -37,53 +36,38 @@ type Dagger struct {
 }
 
 func NewDagger(
-	ctx context.Context,
 	broadcaster rebro.Broadcaster,
 	pool bapl.BatchPool,
 	signerID crypto.PubKey,
 	includers *stake.Includers,
 ) *Dagger {
-	ctx, cancel := context.WithCancel(ctx)
 	return &Dagger{
-		ctx:         ctx,
-		cancel:      cancel,
-		broadcaster: broadcaster,
-		batchPool:   pool,
-		signerID:    signerID,
-		includers:   includers,
+		log:          slog.With("module", "dagger"),
+		round:        1,
+		broadcaster:  broadcaster,
+		batchPool:    pool,
+		signerID:     signerID,
+		includers:    includers,
+		certificates: make(map[uint64][]rebro.Certificate),
 	}
 }
 
-func (d *Dagger) Start(_ context.Context) error {
-	if d.log == nil {
-		d.log = slog.Default()
-	}
+func (d *Dagger) Start() {
+	d.ctx, d.cancel = context.WithCancel(context.Background())
 	go d.run()
-	return nil
+	return
 }
 
-func (d *Dagger) Stop(_ context.Context) error {
-	if d.cancel == nil {
-		return errors.New("already stooped")
-	}
-
+func (d *Dagger) Stop() {
 	d.cancel()
-	d.cancel = nil
-	return nil
 }
 
 // run is indefinitely producing new blocks and propagates them across the network
 func (d *Dagger) run() {
-	for {
-		select {
-		case <-d.ctx.Done():
-			return
-		default:
-		}
-
+	for d.ctx.Err() != nil {
 		err := d.startRound()
 		if err != nil {
-			d.log.Error(err.Error())
+			d.log.Error("executing round", "reason", err)
 			// temporary and hacky solution.
 			// TODO: remove this in favour of better approach
 			time.Sleep(time.Second * 3)
@@ -111,6 +95,7 @@ func (d *Dagger) startRound() error {
 
 	// TODO: certificate signatures should be the part of the block.
 	block := dag.NewBlock(d.round, d.signerID.Bytes(), batches, confirmedBlockHashes)
+	block.Hash() // TODO: Compute in constructor
 	data, err := block.MarshalBinary()
 	if err != nil {
 		return err
@@ -123,6 +108,7 @@ func (d *Dagger) startRound() error {
 	if err != nil {
 		return err
 	}
+	d.log.InfoContext(d.ctx, "finished round", "round", d.round, "batches", len(batches), "parents", len(confirmedBlockHashes))
 
 	for _, batch := range batches {
 		err := d.batchPool.Delete(d.ctx, batch.Hash())

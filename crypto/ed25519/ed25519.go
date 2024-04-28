@@ -1,7 +1,7 @@
 package ed25519
 
 import (
-	sha256 "crypto"
+	stdcrypto "crypto"
 	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
@@ -26,7 +26,7 @@ func (pubKey PublicKey) Equals(other []byte) bool {
 	if len(other) != ed25519.PublicKeySize {
 		return false
 	}
-	return ed25519.PublicKey(pubKey).Equal(other)
+	return ed25519.PublicKey(pubKey).Equal(ed25519.PublicKey(other))
 }
 
 func (pubKey PublicKey) Bytes() []byte {
@@ -40,7 +40,7 @@ func (pubKey PublicKey) Type() string {
 type PrivateKey []byte
 
 func (privKey PrivateKey) Sign(msg []byte) ([]byte, error) {
-	return ed25519.PrivateKey(privKey).Sign(rand.Reader, msg, sha256.SHA256)
+	return ed25519.PrivateKey(privKey).Sign(rand.Reader, msg, stdcrypto.Hash(0))
 }
 
 func (privKey PrivateKey) PubKey() crypto.PubKey {

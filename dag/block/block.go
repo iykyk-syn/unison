@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"capnproto.org/go/capnp/v3"
+	"github.com/iykyk-syn/unison/rebro"
 
 	"github.com/iykyk-syn/unison/bapl"
 	block "github.com/iykyk-syn/unison/dag/block/proto"
@@ -31,7 +32,7 @@ func NewBlock(
 	return &Block{blockID: id, batches: hashes, parents: parents}
 }
 
-func (b *Block) ID() *blockID {
+func (b *Block) ID() rebro.MessageID {
 	return b.blockID
 }
 
@@ -59,7 +60,7 @@ func (b *Block) Signer() []byte {
 }
 
 func (b *Block) String() string {
-	return fmt.Sprintf("%T", b.Hash())
+	return fmt.Sprintf("%X", b.Hash())
 }
 
 func (b *Block) MarshalBinary() ([]byte, error) {
@@ -68,28 +69,43 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 		return nil, fmt.Errorf("creating a segemnt for capnp:%v", err)
 	}
 
-	block, err := block.NewBlock(seg)
+	block, err := block.NewRootBlock(seg)
 	if err != nil {
 		return nil, fmt.Errorf("converting segment to message id:%v", err)
 	}
 
 	block.SetRound(b.blockID.round)
-	block.SetSigner(b.blockID.signer)
+	err = block.SetSigner(b.blockID.signer)
+	if err != nil {
+		return nil, err
+	}
 	bList, err := block.NewBatches(int32(len(b.batches)))
 	if err != nil {
 		return nil, err
 	}
 
 	for i, batch := range b.batches {
-		bList.Set(i, batch)
+		err = bList.Set(i, batch)
+		if err != nil {
+			return nil, err
+		}
 	}
-	block.SetBatches(bList)
+	err = block.SetBatches(bList)
+	if err != nil {
+		return nil, err
+	}
 
 	pList, err := block.NewParents(int32(len(b.parents)))
 	for i, pp := range b.parents {
-		pList.Set(i, pp)
+		err = pList.Set(i, pp)
+		if err != nil {
+			return nil, err
+		}
 	}
-	block.SetParents(pList)
+	err = block.SetParents(pList)
+	if err != nil {
+		return nil, err
+	}
 	return msg.Marshal()
 }
 
@@ -104,6 +120,7 @@ func (b *Block) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("converting received binary data to messageID: %v", err)
 	}
 
+	b.blockID = &blockID{}
 	b.blockID.round = block.Round()
 	b.blockID.signer, err = block.Signer()
 	batchList, err := block.Batches()

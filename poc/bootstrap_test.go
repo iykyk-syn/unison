@@ -36,7 +36,7 @@ func TestBootstrap(t *testing.T) {
 
 	svcs := make([]*BootstrapSvc, nodeCount)
 	for i, h := range hosts {
-		svcs[i] = NewBootstrapSvc(keys[i], h, bootstrapper, nodeCount)
+		svcs[i] = NewBootstrapSvc(keys[i], h)
 	}
 
 	var wg sync.WaitGroup
@@ -45,7 +45,7 @@ func TestBootstrap(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := svc.Start(ctx)
+			err := svc.Start(ctx, bootstrapper)
 			assert.NoError(t, err)
 		}()
 	}

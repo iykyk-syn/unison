@@ -1,9 +1,11 @@
 package dag
 
 import (
+	"crypto/sha256"
 	"fmt"
 
 	"capnproto.org/go/capnp/v3"
+	"github.com/iykyk-syn/unison/rebro"
 
 	block "github.com/iykyk-syn/unison/dag/block/proto"
 )
@@ -12,6 +14,11 @@ type blockID struct {
 	round  uint64
 	signer []byte
 	hash   []byte
+}
+
+func UnmarshalBlockID(bytes []byte) (rebro.MessageID, error) {
+	id := blockID{}
+	return &id, id.UnmarshalBinary(bytes)
 }
 
 func (id *blockID) Round() uint64 {
@@ -27,7 +34,7 @@ func (id *blockID) Hash() []byte {
 }
 
 func (id *blockID) String() string {
-	return fmt.Sprintf("%T", id.hash)
+	return fmt.Sprintf("%X", id.hash)
 }
 
 func (id *blockID) MarshalBinary() ([]byte, error) {
@@ -36,14 +43,20 @@ func (id *blockID) MarshalBinary() ([]byte, error) {
 		return nil, fmt.Errorf("creating a segemnt for capnp:%v", err)
 	}
 
-	blockId, err := block.NewBlockID(seg)
+	blockId, err := block.NewRootBlockID(seg)
 	if err != nil {
 		return nil, fmt.Errorf("converting segment to message id:%v", err)
 	}
 
-	blockId.SetHash(id.hash)
+	err = blockId.SetHash(id.hash)
+	if err != nil {
+		return nil, err
+	}
 	blockId.SetRound(id.round)
-	blockId.SetSigner(id.signer)
+	err = blockId.SetSigner(id.signer)
+	if err != nil {
+		return nil, err
+	}
 	return msg.Marshal()
 }
 
@@ -68,5 +81,9 @@ func (id *blockID) UnmarshalBinary(data []byte) error {
 }
 
 func (id *blockID) Validate() error {
+	if len(id.hash) != sha256.Size {
+		return fmt.Errorf("invalid hash")
+	}
+	// TODO: Add more validation
 	return nil
 }

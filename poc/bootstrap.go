@@ -3,8 +3,9 @@ package poc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/iykyk-syn/unison/crypto/ed25519"
@@ -21,11 +22,11 @@ type BootstrapSvc struct {
 	host host.Host
 
 	selfPublicKey ed25519.PublicKey
-	bootstrapper  peer.AddrInfo
-	networkSize   int
+
+	log *slog.Logger
 }
 
-func NewBootstrapSvc(localPublicKey []byte, host host.Host, bootstrapper peer.AddrInfo, networkSize int) *BootstrapSvc {
+func NewBootstrapSvc(localPublicKey []byte, host host.Host) *BootstrapSvc {
 	key, err := ed25519.BytesToPubKey(localPublicKey)
 	if err != nil {
 		panic(err)
@@ -34,16 +35,15 @@ func NewBootstrapSvc(localPublicKey []byte, host host.Host, bootstrapper peer.Ad
 	return &BootstrapSvc{
 		host:          host,
 		selfPublicKey: key,
-		bootstrapper:  bootstrapper,
-		networkSize:   networkSize,
+		log:           slog.With("module", "bootstrap-svc"),
 	}
 }
 
 // Start connects to bootstrapper and fetch its peers.
-func (b *BootstrapSvc) Start(ctx context.Context) error {
-	err := b.host.Connect(ctx, b.bootstrapper)
+func (b *BootstrapSvc) Start(ctx context.Context, bootstrapper peer.AddrInfo) error {
+	err := b.host.Connect(ctx, bootstrapper)
 	if err != nil {
-		return err
+		return fmt.Errorf("connecting to bootstrapper: %w", err)
 	}
 
 	// this gives time for connections to settle on the bootstrapper and gets us all the peers
@@ -52,7 +52,7 @@ func (b *BootstrapSvc) Start(ctx context.Context) error {
 	case <-ctx.Done():
 	}
 
-	s, err := b.host.NewStream(ctx, b.bootstrapper.ID, bootstrapProtocol)
+	s, err := b.host.NewStream(ctx, bootstrapper.ID, bootstrapProtocol)
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (b *BootstrapSvc) Start(ctx context.Context) error {
 		go func() {
 			err := b.host.Connect(ctx, p)
 			if err != nil {
-				log.Println(err)
+				b.log.Error("connecting to peer", "err", err)
 			}
 		}()
 	}
@@ -98,19 +98,16 @@ func (b *BootstrapSvc) Serve() {
 
 		bytes, err := json.Marshal(peers)
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
 		_, err = stream.Write(bytes)
 		if err != nil {
-			log.Println(err)
 			return
 		}
 
 		err = stream.CloseWrite()
 		if err != nil {
-			log.Println(err)
 			return
 		}
 	})
