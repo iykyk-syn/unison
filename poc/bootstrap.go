@@ -45,6 +45,7 @@ func (b *BootstrapSvc) Start(ctx context.Context, bootstrapper peer.AddrInfo) er
 	if err != nil {
 		return fmt.Errorf("connecting to bootstrapper: %w", err)
 	}
+	b.log.DebugContext(ctx, "connected to bootstrapper")
 
 	// this gives time for connections to settle on the bootstrapper and gets us all the peers
 	select {
