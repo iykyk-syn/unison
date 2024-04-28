@@ -18,7 +18,7 @@ func NewCertifier(pool bapl.BatchPool) rebro.Certifier {
 	return &certifier{pool: pool}
 }
 
-func (v *certifier) Certify(ctx context.Context, msg rebro.Message) error {
+func (c *certifier) Certify(ctx context.Context, msg rebro.Message) error {
 	if msg.Data == nil {
 		return errors.New("block data is empty")
 	}
@@ -39,7 +39,7 @@ func (v *certifier) Certify(ctx context.Context, msg rebro.Message) error {
 	}
 
 	for _, hash := range block.Batches() {
-		_, err = v.pool.Pull(ctx, hash)
+		_, err = c.pool.Pull(ctx, hash)
 		if err != nil {
 			return fmt.Errorf("getting bacth hash %v", err)
 		}
