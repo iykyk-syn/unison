@@ -72,7 +72,7 @@ func (bro *Broadcaster) processData(ctx context.Context, gsp gossipmsg.Gossip) e
 		return fmt.Errorf("adding certificate(%s) to the round(%d): %w", id.String(), id.Round(), err)
 	}
 
-	if err = bro.verifier.Verify(ctx, msg); err != nil {
+	if err = bro.certifier.Certify(ctx, msg); err != nil {
 		err = fmt.Errorf("verifying certificate(%s) for round(%d): %w", id.String(), id.Round(), err)
 		// it means something is wrong with the message and thus its certificate,
 		// so delete it

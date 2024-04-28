@@ -38,13 +38,13 @@ type Broadcaster interface {
 	Broadcast(context.Context, Message, QuorumCertificate) error
 }
 
-// Verifier performs application specific message stateful verification.
+// Certifier performs application-specific stateful certification of messages. 
 // It used by Broadcaster during broadcasting rounds.
-type Verifier interface {
-	// Verify executes verification of every Message delivered to QuorumCertificate
+type Certifier interface {
+	// Certify executes verification of every Message delivered to QuorumCertificate
 	// within a broadcasting round.
 	// Message is guaranteed to be valid by the rules in QuorumCertificate.
-	Verify(context.Context, Message) error
+	Certify(context.Context, Message) error
 }
 
 // Hasher hashes Messages to cross-check their validity with MessageID.Hash
@@ -63,5 +63,5 @@ func (nid NetworkID) String() string {
 // Orchestrator orchestrates multiple Broadcaster instances.
 type Orchestrator interface {
 	// NewBroadcaster instantiates a new Broadcaster.
-	NewBroadcaster(NetworkID, crypto.Signer, Verifier, Hasher, MessageIDDecoder) (Broadcaster, error)
+	NewBroadcaster(NetworkID, crypto.Signer, Certifier, Hasher, MessageIDDecoder) (Broadcaster, error)
 }
