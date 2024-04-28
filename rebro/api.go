@@ -1,13 +1,3 @@
-// Package rebro enables:
-//   - High throughput censorship resistant certificates
-//   - Dynamic and randomized quorums
-//   - Customization of hashing functions and signing schemes, including aggregatable signatures.
-//   - Customization of broadcasting algorithms and networking stacks
-//   - Custom quorum fault parameters and sizes.
-//
-// A trivial consensus algorithm to implement here would be to:
-// * Require full quorum as finalization condition
-// * Order blocks by public keys of quorum participants lexicographically
 package rebro
 
 import (
@@ -38,7 +28,7 @@ type Broadcaster interface {
 	Broadcast(context.Context, Message, QuorumCertificate) error
 }
 
-// Certifier performs application-specific stateful certification of messages. 
+// Certifier performs application-specific stateful certification of messages.
 // It used by Broadcaster during broadcasting rounds.
 type Certifier interface {
 	// Certify executes verification of every Message delivered to QuorumCertificate

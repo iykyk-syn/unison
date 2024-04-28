@@ -2,25 +2,36 @@
 > Consensus nodes performing in unison!
 
 The Unison project is a collection of modular and reusable BFT consensus and broadcast software primitives bundled 
-together as a full stack of protocols for scalable and modular/lazy blockchain networks. It's a consensus stack that 
-cleanly separates concerns aiming to scale them out reliably.
+together as a protocol set for scalable and modular(lazy) blockchain networks. It's a consensus stack that 
+cleanly separates concerns allowing them to scale reliably.
 
-Philosophically, Unison stack draws inspiration from projects like LLVM and libp2p. Practically, Unison implements 
-protocols alike [Narwhal](https://arxiv.org/pdf/2105.11827.pdf), [Bullshark](https://arxiv.org/pdf/2201.05677.pdf) 
+Philosophically, Unison stack draws inspiration from projects like Celestia, LLVM and libp2p. Practically, Unison 
+implements protocols alike to [Narwhal](https://arxiv.org/pdf/2105.11827.pdf), [Bullshark](https://arxiv.org/pdf/2201.05677.pdf) 
 with [Shoal](https://arxiv.org/pdf/2306.03058.pdf) and [Pilotfish](https://arxiv.org/abs/2401.16292).
 
-Unison carefully defines low-level network primitives. The current up-to-date list is:
-* ReBro(Reliable Broadcast)
-* BaPl (Batch Pool)
+## Packages
+List of currently implemented packages with implementation status:
 
+* 🔴 [unison-poc](./unison-poc) - Runnable Proof of Concept of Unison project
+* 🟡 [dag](./dag) - DAG chain implementation
+* 🟢 [rebro](./rebro) - Reliable Broadcast
+* 🟢 [bapl](./bapl) - Batch Pool with multicast and im-memory implementations
+* 🟡 [crypto](./crypto) - crypto primitives
+
+> 🟢 - Needs minor improvements
+> 
+> 🟡 - Needs major redesign/refactorings
+> 
+> 🔴 - To be removed
 
 ## Design Goals
+> TODO: These are supposed to be extended later and categorized e.g. software design goals vs protocol design goals
 
 * Decouple quorum and commitment data structures from the networking protocols and behaviors. 
   * Modular networking behavior
   * Customizable asymmetric cryptography schemes and hash function
 * Clear separation between components. Each component should be individually scalable and, if necessary, deployed on 
-separate machines, a.k.a node sharding.
+separate machines, a.k.a node/internal sharding.
 * Future proving. The network should be able to resync from the very beginning yet be able to change crypto primitives
 in its lifespan. We use self-describing property to achieve that. All the crypto primitives will be commited together with 
 certain unique identifier of the primitive, so that future network iterations can identify which primitive is that to
@@ -45,7 +56,9 @@ decision and not software limitation.
 
 ## RoadMap
 
-* Narwhal-based transaction Data Availability System with casual ordering
+* [PoC](https://github.com/iykyk-syn/unison/issues/22)
+* [Production ready Reliable Broadcast](https://github.com/iykyk-syn/unison/issues/10)
+* [TxPool](https://github.com/iykyk-syn/unison/issues/47)
 * Tendermint consensus running over Unison via CometBFT fork integrating ABCI++ chains
 * Bullshark
 * Shoal
@@ -115,12 +128,3 @@ bottleneck, we contribute back by optimizing that portion. If that's not feasibl
 of the stack in favour of highly optimized solution. The great thing about libp2p's library design is that it is not as 
 invasive and together with rebro's system architecture swapping out pieces with optimization purposes won't be 
 complicated.
-
-### Why GossipSub?
-
-As we already covered libp2p, the GossipSub question becomes half covered. Still, we don't want to pull every single 
-protocol that libp2p ecosystem brings and deliberately select protocols that solve relevant problems. The GossipSub 
-version of reliable broadcast has one important property - peer/node number scale. The GossipSub can scale to dozens 
-thousands nodes network as demonstrated by Ethereum's beacon chain. Initial implementation of reliable broadcast uses
-GossipSub to enable full and (potentially) light clients to follow the reliable broadcast network along, allowing 
-networks to scale to thousands of simultaneous validators/proposers.
