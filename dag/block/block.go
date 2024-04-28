@@ -156,6 +156,10 @@ func (b *Block) UnmarshalBinary(data []byte) error {
 	return err
 }
 
+func (b *Block) Batches() [][]byte {
+	return b.batches
+}
+
 func (b *Block) Validate() error {
 	return nil
 }
