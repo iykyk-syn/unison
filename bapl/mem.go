@@ -12,6 +12,7 @@ import (
 
 type MemPool struct {
 	batchesMu   sync.Mutex
+	batchesCond sync.Cond
 	batches     map[string]*Batch
 	batchesSubs map[string]map[chan *Batch]struct{}
 }
@@ -23,15 +24,18 @@ func (p *MemPool) Size(context.Context) (int, error) {
 }
 
 func NewMemPool() *MemPool {
-	return &MemPool{
+	pool := &MemPool{
 		batches:     make(map[string]*Batch),
 		batchesSubs: make(map[string]map[chan *Batch]struct{}),
 	}
+	pool.batchesCond.L = &pool.batchesMu
+	return pool
 }
 
 func (p *MemPool) Push(_ context.Context, batch *Batch) error {
 	p.batchesMu.Lock()
 	defer p.batchesMu.Unlock()
+	defer p.batchesCond.Broadcast()
 
 	key := string(batch.Hash())
 	p.batches[key] = batch
@@ -87,14 +91,21 @@ func (p *MemPool) ListBySigner(_ context.Context, key []byte) ([]*Batch, error) 
 	defer p.batchesMu.Unlock()
 
 	// TODO: Rework data structure to be O(1)
-	var batches []*Batch
-	for _, b := range p.batches {
-		if bytes.Equal(b.Signature.Signer, key) {
-			batches = append(batches, b)
+	for {
+		var batches []*Batch
+		for _, b := range p.batches {
+			if bytes.Equal(b.Signature.Signer, key) {
+				batches = append(batches, b)
+			}
 		}
-	}
 
-	return batches, nil
+		if len(batches) == 0 {
+			p.batchesCond.Wait()
+			continue
+		}
+
+		return batches, nil
+	}
 }
 
 func (p *MemPool) Delete(_ context.Context, hash []byte) error {
