@@ -1,4 +1,4 @@
-package poc
+package bootstrap
 
 import (
 	"context"
@@ -34,9 +34,9 @@ func TestBootstrap(t *testing.T) {
 
 	bootstrapper := *host.InfoFromHost(hosts[0])
 
-	svcs := make([]*BootstrapSvc, nodeCount)
+	svcs := make([]*Service, nodeCount)
 	for i, h := range hosts {
-		svcs[i] = NewBootstrapSvc(keys[i], h)
+		svcs[i] = NewService(keys[i], h)
 	}
 
 	var wg sync.WaitGroup
@@ -57,7 +57,7 @@ func TestBootstrap(t *testing.T) {
 	}
 
 	for _, svc := range svcs[1:] {
-		incls, err := svc.GetMembers()
+		incls, err := svc.GetMembers(0)
 		require.NoError(t, err)
 		assert.Equal(t, incls.Len(), nodeCount)
 		assert.EqualValues(t, incls.TotalStake(), nodeCount*defaultStake)

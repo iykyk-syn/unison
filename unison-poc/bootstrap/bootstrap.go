@@ -1,4 +1,4 @@
-package poc
+package bootstrap
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/iykyk-syn/unison/crypto/ed25519"
-	"github.com/iykyk-syn/unison/stake"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -18,7 +17,7 @@ import (
 
 var bootstrapProtocol protocol.ID = "/bootstrap"
 
-type BootstrapSvc struct {
+type Service struct {
 	host host.Host
 
 	selfPublicKey ed25519.PublicKey
@@ -26,13 +25,13 @@ type BootstrapSvc struct {
 	log *slog.Logger
 }
 
-func NewBootstrapSvc(localPublicKey []byte, host host.Host) *BootstrapSvc {
+func NewService(localPublicKey []byte, host host.Host) *Service {
 	key, err := ed25519.BytesToPubKey(localPublicKey)
 	if err != nil {
 		panic(err)
 	}
 
-	return &BootstrapSvc{
+	return &Service{
 		host:          host,
 		selfPublicKey: key,
 		log:           slog.With("module", "bootstrap-svc"),
@@ -40,12 +39,12 @@ func NewBootstrapSvc(localPublicKey []byte, host host.Host) *BootstrapSvc {
 }
 
 // Start connects to bootstrapper and fetch its peers.
-func (b *BootstrapSvc) Start(ctx context.Context, bootstrapper peer.AddrInfo) error {
-	err := b.host.Connect(ctx, bootstrapper)
+func (serv *Service) Start(ctx context.Context, bootstrapper peer.AddrInfo) error {
+	err := serv.host.Connect(ctx, bootstrapper)
 	if err != nil {
 		return fmt.Errorf("connecting to bootstrapper: %w", err)
 	}
-	b.log.DebugContext(ctx, "connected to bootstrapper")
+	serv.log.DebugContext(ctx, "connected to bootstrapper")
 
 	// this gives time for connections to settle on the bootstrapper and gets us all the peers
 	select {
@@ -53,7 +52,7 @@ func (b *BootstrapSvc) Start(ctx context.Context, bootstrapper peer.AddrInfo) er
 	case <-ctx.Done():
 	}
 
-	s, err := b.host.NewStream(ctx, bootstrapper.ID, bootstrapProtocol)
+	s, err := serv.host.NewStream(ctx, bootstrapper.ID, bootstrapProtocol)
 	if err != nil {
 		return err
 	}
@@ -76,21 +75,21 @@ func (b *BootstrapSvc) Start(ctx context.Context, bootstrapper peer.AddrInfo) er
 
 	for _, p := range peers {
 		go func() {
-			err := b.host.Connect(ctx, p)
+			err := serv.host.Connect(ctx, p)
 			if err != nil {
-				b.log.Error("connecting to peer", "err", err)
+				serv.log.Error("connecting to peer", "err", err)
 			}
 		}()
 	}
 
-	b.log.Debug("started")
+	serv.log.Debug("started")
 	return nil
 }
 
 // Serve starts serving bootstrap requests.
-func (b *BootstrapSvc) Serve() {
-	b.host.SetStreamHandler(bootstrapProtocol, func(stream network.Stream) {
-		store := b.host.Peerstore()
+func (serv *Service) Serve() {
+	serv.host.SetStreamHandler(bootstrapProtocol, func(stream network.Stream) {
+		store := serv.host.Peerstore()
 		peerIDs := store.PeersWithAddrs()
 
 		peers := make([]peer.AddrInfo, len(peerIDs))
@@ -118,11 +117,11 @@ func (b *BootstrapSvc) Serve() {
 const defaultStake = 1000
 
 // GetMembers construct includer/validator set out of network participants
-func (b *BootstrapSvc) GetMembers(uint64) (*stake.Includers, error) {
-	store := b.host.Peerstore()
-	peers := b.host.Network().Peers()
-	incls := make([]*stake.Includer, 0, len(peers)+1)
-	incls = append(incls, stake.NewIncluder(b.selfPublicKey, defaultStake))
+func (serv *Service) GetMembers(uint64) (*quorum.Includers, error) {
+	store := serv.host.Peerstore()
+	peers := serv.host.Network().Peers()
+	incls := make([]*quorum.Includer, 0, len(peers)+1)
+	incls = append(incls, quorum.NewIncluder(serv.selfPublicKey, defaultStake))
 
 	for _, p := range peers {
 		keyWrap := store.PubKey(p)
@@ -136,8 +135,8 @@ func (b *BootstrapSvc) GetMembers(uint64) (*stake.Includers, error) {
 			return nil, err
 		}
 
-		incls = append(incls, stake.NewIncluder(key, defaultStake))
+		incls = append(incls, quorum.NewIncluder(key, defaultStake))
 	}
 
-	return stake.NewIncludersSet(incls), nil
+	return quorum.NewIncludersSet(incls), nil
 }

@@ -7,7 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/iykyk-syn/unison/bapl"
-	dag "github.com/iykyk-syn/unison/dag/block"
+	"github.com/iykyk-syn/unison/dag/block"
 	"github.com/iykyk-syn/unison/rebro"
 )
 
@@ -29,24 +29,24 @@ func (c *certifier) Certify(ctx context.Context, msg rebro.Message) error {
 		return fmt.Errorf("validating blockID:%v", err)
 	}
 
-	block := &dag.Block{}
-	err = block.UnmarshalBinary(msg.Data)
+	blk := &block.Block{}
+	err = blk.UnmarshalBinary(msg.Data)
 	if err != nil {
 		return fmt.Errorf("unmarshalling block %v", err)
 	}
 
-	err = block.Validate()
+	err = blk.Validate()
 	if err != nil {
 		return fmt.Errorf("validating block %v", err)
 	}
 
-	for _, hash := range block.Batches() {
+	for _, hash := range blk.Batches() {
 		_, err = c.pool.Pull(ctx, hash)
 		if err != nil {
 			return fmt.Errorf("getting bacth hash %v", err)
 		}
 	}
 
-	c.log.Debug("certified", "block_hash", block)
+	c.log.Debug("certified", "block_hash", blk)
 	return nil
 }

@@ -1,8 +1,8 @@
 @0xebe99359e631e3a9;
 
 using Go = import "/go.capnp";
-$Go.package("block");
-$Go.import("block/proto/block");
+$Go.package("blockmsg");
+$Go.import("dag/block/blockmsg");
 
 struct Block {
     round @0 :UInt64;
