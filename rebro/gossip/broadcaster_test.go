@@ -11,8 +11,6 @@ import (
 	"testing"
 	"time"
 
-	crypto2 "github.com/iykyk-syn/unison/crypto"
-	"github.com/iykyk-syn/unison/rebro"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -20,6 +18,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+
+	crypto2 "github.com/iykyk-syn/unison/crypto"
+	"github.com/iykyk-syn/unison/rebro"
 )
 
 func TestBroadcaster(t *testing.T) {
@@ -69,7 +70,7 @@ func TestBroadcaster(t *testing.T) {
 func broadcasterGood(t *testing.T, host host.Host) *Broadcaster {
 	psub, err := pubsub.NewGossipSub(context.Background(), host, pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
-	bro := NewBroadcaster(testNetworkID, newTestSigner(), &testVerifier{}, &testHasher{}, unmarshalMessageID, psub)
+	bro := NewBroadcaster(testNetworkID, newTestSigner(), &testCertifier{}, &testHasher{}, unmarshalMessageID, psub)
 	return bro
 }
 
@@ -171,10 +172,10 @@ func (t *testHasher) Hash(msg rebro.Message) ([]byte, error) {
 	return hash.Sum(nil), nil
 }
 
-type testVerifier struct {
+type testCertifier struct {
 }
 
-func (t testVerifier) Verify(ctx context.Context, message rebro.Message) error {
+func (t testCertifier) Certify(ctx context.Context, message rebro.Message) error {
 	// simply accept for now
 	return nil
 }

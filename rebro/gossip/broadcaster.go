@@ -9,12 +9,13 @@ import (
 	"time"
 
 	"capnproto.org/go/capnp/v3"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/peer"
+
 	"github.com/iykyk-syn/unison/crypto"
 	"github.com/iykyk-syn/unison/rebro"
 	"github.com/iykyk-syn/unison/rebro/gossip/gossipmsg"
 	"github.com/iykyk-syn/unison/rebro/gossip/internal/round"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 type Broadcaster struct {
@@ -25,22 +26,22 @@ type Broadcaster struct {
 	topic  *pubsub.Topic
 	sub    *pubsub.Subscription
 
-	signer   crypto.Signer
-	verifier rebro.Verifier
-	hasher   rebro.Hasher
-	decoder  rebro.MessageIDDecoder
+	signer    crypto.Signer
+	certifier rebro.Certifier
+	hasher    rebro.Hasher
+	decoder   rebro.MessageIDDecoder
 
 	log *slog.Logger
 }
 
 // NewBroadcaster instantiates a new gossiping [Broadcaster].
-func NewBroadcaster(networkID rebro.NetworkID, singer crypto.Signer, verifier rebro.Verifier, hasher rebro.Hasher, decoder rebro.MessageIDDecoder, ps *pubsub.PubSub) *Broadcaster {
+func NewBroadcaster(networkID rebro.NetworkID, singer crypto.Signer, certifier rebro.Certifier, hasher rebro.Hasher, decoder rebro.MessageIDDecoder, ps *pubsub.PubSub) *Broadcaster {
 	return &Broadcaster{
 		networkID: networkID,
 		rounds:    round.NewManager(),
 		pubsub:    ps,
 		signer:    singer,
-		verifier:  verifier,
+		certifier: certifier,
 		hasher:    hasher,
 		decoder:   decoder,
 		log:       slog.With("module", "broadcaster"),

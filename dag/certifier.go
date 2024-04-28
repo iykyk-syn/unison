@@ -10,15 +10,15 @@ import (
 	"github.com/iykyk-syn/unison/rebro"
 )
 
-type verifier struct {
+type certifier struct {
 	pool bapl.BatchPool
 }
 
-func NewVerifier(pool bapl.BatchPool) *verifier {
-	return &verifier{pool: pool}
+func NewCertifier(pool bapl.BatchPool) rebro.Certifier {
+	return &certifier{pool: pool}
 }
 
-func (v *verifier) Verify(ctx context.Context, msg rebro.Message) error {
+func (v *certifier) Certify(ctx context.Context, msg rebro.Message) error {
 	if msg.Data == nil {
 		return errors.New("block data is empty")
 	}
