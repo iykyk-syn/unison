@@ -19,10 +19,10 @@ import (
 	"github.com/iykyk-syn/unison/crypto/ed25519"
 	"github.com/iykyk-syn/unison/crypto/local"
 	"github.com/iykyk-syn/unison/dag"
-	block "github.com/iykyk-syn/unison/dag/block"
-	"github.com/iykyk-syn/unison/poc"
+	"github.com/iykyk-syn/unison/dag/block"
 	"github.com/iykyk-syn/unison/rebro"
 	"github.com/iykyk-syn/unison/rebro/gossip"
+	bootstrap2 "github.com/iykyk-syn/unison/unison-poc/bootstrap"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-pubsub"
 	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
@@ -31,7 +31,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 )
 
-var network rebro.NetworkID = "poc"
+var networkID rebro.NetworkID = "poc"
 
 var (
 	isBootstrapper bool
@@ -110,7 +110,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	bootstrap := poc.NewBootstrapSvc(signer.ID(), host)
+	bootstrap := bootstrap2.NewService(signer.ID(), host)
 	if isBootstrapper {
 		bootstrap.Serve()
 	} else {
@@ -137,7 +137,7 @@ func run(ctx context.Context) error {
 
 	cert := dag.NewCertifier(mcastPool)
 	hasher := dag.NewHasher()
-	broadcaster := gossip.NewBroadcaster(network, signer, cert, hasher, block.UnmarshalBlockID, pubsub)
+	broadcaster := gossip.NewBroadcaster(networkID, signer, cert, hasher, block.UnmarshalBlockID, pubsub)
 
 	err = broadcaster.Start()
 	if err != nil {
@@ -163,7 +163,7 @@ func run(ctx context.Context) error {
 		return ctx.Err()
 	}
 
-	dagger := dag.NewDagger(broadcaster, mcastPool, bootstrap.GetMembers, privKey.PubKey())
+	dagger := dag.NewChain(broadcaster, mcastPool, bootstrap.GetMembers, privKey.PubKey())
 	dagger.Start()
 	defer dagger.Stop()
 
@@ -173,7 +173,7 @@ func run(ctx context.Context) error {
 			return ctx.Err()
 		}
 	}
-	poc.RandomBatches(ctx, mcastPool, batchSize, batchTime)
+	RandomBatches(ctx, mcastPool, batchSize, batchTime)
 	return nil
 }
 

@@ -1,4 +1,4 @@
-package stake
+package quorum
 
 import (
 	"bytes"

@@ -1,4 +1,4 @@
-package poc
+package main
 
 import (
 	"context"

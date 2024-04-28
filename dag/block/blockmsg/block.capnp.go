@@ -3,9 +3,9 @@
 package block
 
 import (
-	capnp "capnproto.org/go/capnp/v3"
-	text "capnproto.org/go/capnp/v3/encoding/text"
-	schemas "capnproto.org/go/capnp/v3/schemas"
+	"capnproto.org/go/capnp/v3"
+	"capnproto.org/go/capnp/v3/encoding/text"
+	"capnproto.org/go/capnp/v3/schemas"
 )
 
 type Block capnp.Struct

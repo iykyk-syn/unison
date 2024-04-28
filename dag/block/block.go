@@ -1,14 +1,14 @@
-package dag
+package block
 
 import (
 	"crypto/sha256"
 	"fmt"
 
 	"capnproto.org/go/capnp/v3"
+	block "github.com/iykyk-syn/unison/dag/block/blockmsg"
 	"github.com/iykyk-syn/unison/rebro"
 
 	"github.com/iykyk-syn/unison/bapl"
-	block "github.com/iykyk-syn/unison/dag/block/proto"
 )
 
 type Block struct {
