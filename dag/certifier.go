@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/iykyk-syn/unison/bapl"
 	dag "github.com/iykyk-syn/unison/dag/block"
@@ -12,10 +13,11 @@ import (
 
 type certifier struct {
 	pool bapl.BatchPool
+	log  *slog.Logger
 }
 
 func NewCertifier(pool bapl.BatchPool) rebro.Certifier {
-	return &certifier{pool: pool}
+	return &certifier{pool: pool, log: slog.With("module", "certifiers")}
 }
 
 func (c *certifier) Certify(ctx context.Context, msg rebro.Message) error {
@@ -44,5 +46,7 @@ func (c *certifier) Certify(ctx context.Context, msg rebro.Message) error {
 			return fmt.Errorf("getting bacth hash %v", err)
 		}
 	}
+
+	c.log.Debug("certified", "block_hash", block)
 	return nil
 }
