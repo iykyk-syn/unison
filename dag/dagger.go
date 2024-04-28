@@ -13,13 +13,15 @@ import (
 	"github.com/iykyk-syn/unison/stake"
 )
 
+type IncludersFn func(round uint64) (*stake.Includers, error)
+
 // Dagger implements a broadcasting mechanism for blocks.
 // It creates a block on every new round and propagates it across the network, blocking until enough signatures will be
 // collected(quorum is finalized)
 type Dagger struct {
-	includers   *stake.Includers
 	broadcaster rebro.Broadcaster
 	batchPool   bapl.BatchPool
+	includers   IncludersFn
 
 	signerID     crypto.PubKey
 	blockTimeout time.Duration
@@ -34,7 +36,7 @@ type Dagger struct {
 func NewDagger(
 	broadcaster rebro.Broadcaster,
 	pool bapl.BatchPool,
-	includers *stake.Includers,
+	includers IncludersFn,
 	signerID crypto.PubKey,
 	blockTimeout time.Duration,
 ) *Dagger {
@@ -123,8 +125,13 @@ func (d *Dagger) startRound(ctx context.Context) error {
 		return err
 	}
 
+	includers, err := d.includers(d.round)
+	if err != nil {
+		return err
+	}
+
 	msg := rebro.Message{ID: block.ID(), Data: data}
-	quorum := stake.NewQuorum(d.includers)
+	quorum := stake.NewQuorum(includers)
 	err = d.broadcaster.Broadcast(ctx, msg, quorum)
 	if err != nil {
 		return err

@@ -117,7 +117,7 @@ func (b *BootstrapSvc) Serve() {
 const defaultStake = 1000
 
 // GetMembers construct includer/validator set out of network participants
-func (b *BootstrapSvc) GetMembers() (*stake.Includers, error) {
+func (b *BootstrapSvc) GetMembers(uint64) (*stake.Includers, error) {
 	store := b.host.Peerstore()
 	peers := b.host.Network().Peers()
 	incls := make([]*stake.Includer, 0, len(peers)+1)

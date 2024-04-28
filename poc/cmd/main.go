@@ -130,12 +130,6 @@ func run(ctx context.Context) error {
 		}
 	}
 
-	select {
-	case <-time.After(kickoffTimeout):
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
 	pool := bapl.NewMemPool()
 	mcastPool := bapl.NewMulticastPool(pool, host, host.Network().Peers, signer, &batchVerifier{})
 	mcastPool.Start()
@@ -151,17 +145,17 @@ func run(ctx context.Context) error {
 	}
 	defer broadcaster.Stop(ctx)
 
-	members, err := bootstrap.GetMembers()
-	if err != nil {
-		return err
+	select {
+	case <-time.After(kickoffTimeout):
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 
-	dagger := dag.NewDagger(broadcaster, mcastPool, members, privKey.PubKey(), blockTimeout)
+	dagger := dag.NewDagger(broadcaster, mcastPool, bootstrap.GetMembers, privKey.PubKey(), blockTimeout)
 	dagger.Start()
 	defer dagger.Stop()
 
 	poc.RandomBatches(ctx, mcastPool, batchSize, batchTime)
-
 	return nil
 }
 
@@ -226,9 +220,9 @@ func getIdentity() (libp2pcrypto.PrivKey, crypto.PrivKey, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	key := ed25519.PrivateKey(keyRaw) // truncate the public key off
+	key := ed25519.PrivateKey(keyRaw)
 
-	slog.Default().Info("identity", "key", hex.EncodeToString(key))
+	slog.Info("identity", "key", hex.EncodeToString(key))
 	return p2pKey, key, nil
 }
 
