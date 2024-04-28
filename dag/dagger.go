@@ -17,44 +17,43 @@ import (
 // It creates a block on every new round and propagates it across the network, blocking until enough signatures will be
 // collected(quorum is finalized)
 type Dagger struct {
-	log *slog.Logger
-
-	ctx    context.Context
-	cancel context.CancelFunc
-
-	round uint64
-
+	includers   *stake.Includers
 	broadcaster rebro.Broadcaster
+	batchPool   bapl.BatchPool
 
-	batchPool bapl.BatchPool
+	signerID     crypto.PubKey
+	blockTimeout time.Duration
 
-	signerID crypto.PubKey
+	round      uint64
+	lastQuorum rebro.QuorumCertificate
 
-	certificates map[uint64][]rebro.Certificate
-
-	includers *stake.Includers
+	log    *slog.Logger
+	cancel context.CancelFunc
 }
 
 func NewDagger(
 	broadcaster rebro.Broadcaster,
 	pool bapl.BatchPool,
-	signerID crypto.PubKey,
 	includers *stake.Includers,
+	signerID crypto.PubKey,
+	blockTimeout time.Duration,
 ) *Dagger {
 	return &Dagger{
-		log:          slog.With("module", "dagger"),
-		round:        1,
 		broadcaster:  broadcaster,
 		batchPool:    pool,
-		signerID:     signerID,
 		includers:    includers,
-		certificates: make(map[uint64][]rebro.Certificate),
+		signerID:     signerID,
+		blockTimeout: blockTimeout,
+		round:        1, // must start from 1
+		log:          slog.With("module", "dagger"),
 	}
 }
 
 func (d *Dagger) Start() {
-	d.ctx, d.cancel = context.WithCancel(context.Background())
-	go d.run()
+	ctx, cancel := context.WithCancel(context.Background())
+	d.cancel = cancel
+	go d.run(ctx)
+	d.log.Debug("started")
 	return
 }
 
@@ -63,11 +62,19 @@ func (d *Dagger) Stop() {
 }
 
 // run is indefinitely producing new blocks and propagates them across the network
-func (d *Dagger) run() {
-	for d.ctx.Err() != nil {
-		err := d.startRound()
+func (d *Dagger) run(ctx context.Context) {
+	for ctx.Err() == nil {
+		if d.blockTimeout != 0 {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(d.blockTimeout):
+			}
+		}
+
+		err := d.startRound(ctx)
 		if err != nil {
-			d.log.Error("executing round", "reason", err)
+			d.log.ErrorContext(ctx, "executing round", "reason", err)
 			// temporary and hacky solution.
 			// TODO: remove this in favour of better approach
 			time.Sleep(time.Second * 3)
@@ -75,49 +82,64 @@ func (d *Dagger) run() {
 	}
 }
 
-// startRound creates a new block and propagate it across the network.
-// block creation consists of multiple stages:
-// 1) collects all batches that has been produced by the signer;
-// 2) creates block from batches and blocks from previous round;
-// 3) propagates block and wait until quorum will be reached;
-// 4) cleanups batches and stores block hashes from the current round;
-func (d *Dagger) startRound() error {
-	batches, err := d.batchPool.ListBySigner(d.ctx, d.signerID.Bytes())
+// startRound assembles a new block and broadcasts it across the network.
+//
+// assembling stages:
+// * collect block hashes from last round as parent hashes
+// * cleanup batches commited in blocks from last round
+// * prepare the new uncommited batches
+// * create a block from the batches and the parents hashes;
+// * propagate the block and wait until quorum is reached;
+func (d *Dagger) startRound(ctx context.Context) error {
+	certs := d.lastCertificates()
+	parents := make([][]byte, len(certs))
+	for i, cert := range certs {
+		parents[i] = certs[i].Message().ID.Hash()
+
+		var block dag.Block
+		err := block.UnmarshalBinary(cert.Message().Data)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, batchHash := range block.Batches() {
+			err := d.batchPool.Delete(ctx, batchHash)
+			if err != nil {
+				d.log.WarnContext(ctx, "can't delete a batch", "err", err)
+			}
+		}
+	}
+
+	newBatches, err := d.batchPool.ListBySigner(ctx, d.signerID.Bytes())
 	if err != nil {
 		return fmt.Errorf("can't get batches for the new round:%w", err)
 	}
 
-	confirmedBlockHashes := make([][]byte, len(d.certificates[d.round-1]))
-
-	for i := range confirmedBlockHashes {
-		confirmedBlockHashes[i] = d.certificates[d.round-1][i].Message().ID.Hash()
-	}
-
 	// TODO: certificate signatures should be the part of the block.
-	block := dag.NewBlock(d.round, d.signerID.Bytes(), batches, confirmedBlockHashes)
+	block := dag.NewBlock(d.round, d.signerID.Bytes(), newBatches, parents)
 	block.Hash() // TODO: Compute in constructor
 	data, err := block.MarshalBinary()
 	if err != nil {
 		return err
 	}
-	quorum := stake.NewQuorum(d.includers)
 
 	msg := rebro.Message{ID: block.ID(), Data: data}
-
-	err = d.broadcaster.Broadcast(d.ctx, msg, quorum)
+	quorum := stake.NewQuorum(d.includers)
+	err = d.broadcaster.Broadcast(ctx, msg, quorum)
 	if err != nil {
 		return err
 	}
-	d.log.InfoContext(d.ctx, "finished round", "round", d.round, "batches", len(batches), "parents", len(confirmedBlockHashes))
+	d.log.InfoContext(ctx, "finished round", "round", d.round, "batches", len(newBatches), "parents", len(parents))
 
-	for _, batch := range batches {
-		err := d.batchPool.Delete(d.ctx, batch.Hash())
-		if err != nil {
-			d.log.Warn("can't delete a batch", err)
-		}
+	d.round++
+	d.lastQuorum = quorum
+	return nil
+}
+
+func (d *Dagger) lastCertificates() []rebro.Certificate {
+	if d.lastQuorum == nil {
+		return nil
 	}
 
-	d.certificates[d.round] = quorum.List()
-	d.round++
-	return nil
+	return d.lastQuorum.List()
 }
