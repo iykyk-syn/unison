@@ -46,7 +46,7 @@ func init() {
 	flag.BoolVar(&isBootstrapper, "is-bootstrapper", false, "To indicate node is bootstrapper")
 	flag.StringVar(&bootstrapper, "bootstrapper", "", "Specifies network bootstrapper multiaddr")
 	flag.DurationVar(&kickoffTimeout, "kickoff-timeout", time.Second*5, "Timeout before starting block production")
-	flag.IntVar(&batchSize, "batch-amount", 1000*125, "Batch size to be produced every 'batch-time' (bytes)")
+	flag.IntVar(&batchSize, "batch-size", 1000*125, "Batch size to be produced every 'batch-time' (bytes). 0 disables batch production")
 	flag.DurationVar(&batchTime, "batch-time", time.Second, "Batch production time")
 	flag.DurationVar(&blockTimeout, "block-time", 0, "Adds additional time before producing new block")
 	flag.Parse()
@@ -155,6 +155,12 @@ func run(ctx context.Context) error {
 	dagger.Start()
 	defer dagger.Stop()
 
+	if batchSize == 0 {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 	poc.RandomBatches(ctx, mcastPool, batchSize, batchTime)
 	return nil
 }
