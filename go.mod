@@ -3,11 +3,12 @@ module github.com/iykyk-syn/unison
 go 1.22.1
 
 require (
-	capnproto.org/go/capnp/v3 v3.0.0-alpha-29
+	capnproto.org/go/capnp/v3 v3.0.0-alpha.30.0.20240213214103-0d218d2660ff
 	github.com/libp2p/go-libp2p v0.33.1
 	github.com/libp2p/go-libp2p-pubsub v0.10.0
+	github.com/multiformats/go-multiaddr v0.12.2
 	github.com/stretchr/testify v1.8.4
-	golang.org/x/sync v0.6.0
+	golang.org/x/sync v0.7.0
 )
 
 require (
@@ -55,7 +56,6 @@ require (
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
 	github.com/multiformats/go-base36 v0.2.0 // indirect
-	github.com/multiformats/go-multiaddr v0.12.2 // indirect
 	github.com/multiformats/go-multiaddr-dns v0.3.1 // indirect
 	github.com/multiformats/go-multiaddr-fmt v0.1.0 // indirect
 	github.com/multiformats/go-multibase v0.2.0 // indirect
@@ -92,5 +92,4 @@ require (
 	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.2.1 // indirect
-	zenhack.net/go/util v0.0.0-20230414204917-531d38494cf5 // indirect
 )
