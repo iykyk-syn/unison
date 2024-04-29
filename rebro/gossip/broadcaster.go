@@ -164,7 +164,7 @@ func (bro *Broadcaster) deliverGossip(ctx context.Context, _ peer.ID, gossip *pu
 		err := recover()
 		if err != nil {
 			bro.log.ErrorContext(ctx, "deliver gossip panic", "err", err)
-			fmt.Println(debug.Stack())
+			fmt.Println(string(debug.Stack()))
 			res = pubsub.ValidationReject
 		}
 	}()
