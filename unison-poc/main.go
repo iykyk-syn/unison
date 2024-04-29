@@ -27,6 +27,7 @@ import (
 	"github.com/libp2p/go-libp2p-pubsub"
 	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	p2phost "github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 )
@@ -89,10 +90,11 @@ func run(ctx context.Context) error {
 		listenMAddrs = append(listenMAddrs, addr)
 	}
 
-	host, err := libp2p.New(libp2p.Identity(p2pKey), libp2p.ListenAddrs(listenMAddrs...))
+	host, err := libp2p.New(libp2p.Identity(p2pKey), libp2p.ListenAddrs(listenMAddrs...), libp2p.ResourceManager(&network.NullResourceManager{}))
 	if err != nil {
 		return err
 	}
+	defer host.Close()
 
 	addrs, err := peer.AddrInfoToP2pAddrs(p2phost.InfoFromHost(host))
 	if err != nil {
