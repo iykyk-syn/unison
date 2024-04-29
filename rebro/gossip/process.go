@@ -64,12 +64,18 @@ func (bro *Broadcaster) processData(ctx context.Context, gsp gossipmsg.Gossip) e
 	}
 
 	r, err := bro.rounds.GetRound(ctx, id.Round())
-	if err != nil && !errors.Is(err, round.ErrElapsedRound) {
+	if err != nil {
+		if errors.Is(err, round.ErrElapsedRound) {
+			return nil
+		}
 		return fmt.Errorf("getting round(%d): %w", id.Round(), err)
 	}
 	// add to quorum and prepare the certificate
 	err = r.AddCertificate(ctx, msg)
-	if err != nil && !errors.Is(err, round.ErrClosedRound) {
+	if err != nil {
+		if errors.Is(err, round.ErrClosedRound) {
+			return nil
+		}
 		return fmt.Errorf("adding certificate(%s) to the round(%d): %w", id.String(), id.Round(), err)
 	}
 
@@ -123,13 +129,19 @@ func (bro *Broadcaster) processSignature(ctx context.Context, gsp gossipmsg.Goss
 	}
 
 	r, err := bro.rounds.GetRound(ctx, id.Round())
-	if err != nil && !errors.Is(err, round.ErrElapsedRound) {
+	if err != nil {
+		if errors.Is(err, round.ErrElapsedRound) {
+			return nil
+		}
 		return fmt.Errorf("getting round(%d): %w", id.Round(), err)
 	}
 
 	// ensure we have the certificate before doing expensive verification
 	_, err = r.GetCertificate(ctx, id)
-	if err != nil && !errors.Is(err, round.ErrClosedRound) {
+	if err != nil {
+		if errors.Is(err, round.ErrClosedRound) {
+			return nil
+		}
 		return fmt.Errorf("getting certificate(%s) for the round(%d): %w", id.String(), id.Round(), err)
 	}
 
@@ -153,7 +165,10 @@ func (bro *Broadcaster) processSignature(ctx context.Context, gsp gossipmsg.Goss
 	}
 
 	err = r.AddSignature(ctx, id, signature)
-	if err != nil && !errors.Is(err, round.ErrClosedRound) {
+	if err != nil {
+		if errors.Is(err, round.ErrClosedRound) {
+			return nil
+		}
 		return fmt.Errorf("adding signature from(%X) to certificate(%s), for round(%d): %w", signature.Signer, id.String(), id.Round(), err)
 	}
 

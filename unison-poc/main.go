@@ -20,6 +20,7 @@ import (
 	"github.com/iykyk-syn/unison/crypto/local"
 	"github.com/iykyk-syn/unison/dag"
 	"github.com/iykyk-syn/unison/dag/block"
+	"github.com/iykyk-syn/unison/dag/quorum"
 	"github.com/iykyk-syn/unison/rebro"
 	"github.com/iykyk-syn/unison/rebro/gossip"
 	bootstrap2 "github.com/iykyk-syn/unison/unison-poc/bootstrap"
@@ -156,7 +157,14 @@ func run(ctx context.Context) error {
 		return ctx.Err()
 	}
 
-	dagger := dag.NewChain(broadcaster, mcastPool, bootstrap.GetMembers, privKey.PubKey())
+	memebers, err := bootstrap.GetMembers(0)
+	if err != nil {
+		return err
+	}
+
+	dagger := dag.NewChain(broadcaster, mcastPool, func(round uint64) (*quorum.Includers, error) {
+		return memebers, nil
+	}, privKey.PubKey())
 	dagger.Start()
 	defer dagger.Stop()
 
