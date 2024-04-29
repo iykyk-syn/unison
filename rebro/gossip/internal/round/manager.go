@@ -92,6 +92,9 @@ func (rm *Manager) StopRound(ctx context.Context, roundNum uint64) error {
 
 	rm.roundsMu.Lock()
 	delete(rm.rounds, roundNum)
+	for sub := range rm.roundSubs[roundNum] {
+		close(sub)
+	}
 	delete(rm.roundSubs, roundNum)
 	rm.roundsMu.Unlock()
 	return nil
@@ -122,7 +125,10 @@ func (rm *Manager) GetRound(ctx context.Context, roundNum uint64) (*Round, error
 	rm.roundsMu.Unlock()
 
 	select {
-	case resp := <-sub:
+	case resp, ok := <-sub:
+		if !ok {
+			return nil, ErrElapsedRound
+		}
 		return resp, nil
 	case <-ctx.Done():
 		// no need to keep the request, if the caller has canceled
