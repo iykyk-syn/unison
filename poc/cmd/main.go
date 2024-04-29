@@ -39,14 +39,16 @@ var (
 	kickoffTimeout time.Duration
 	batchSize      int
 	batchTime      time.Duration
+	networkSize    int
 )
 
 func init() {
 	flag.BoolVar(&isBootstrapper, "is-bootstrapper", false, "To indicate node is bootstrapper")
 	flag.StringVar(&bootstrapper, "bootstrapper", "", "Specifies network bootstrapper multiaddr")
 	flag.DurationVar(&kickoffTimeout, "kickoff-timeout", time.Second*5, "Timeout before starting block production")
-	flag.IntVar(&batchSize, "batch-size", 1000*125, "Batch size to be produced every 'batch-time' (bytes). 0 disables batch production")
+	flag.IntVar(&batchSize, "batch-size", 2000*125, "Batch size to be produced every 'batch-time' (bytes). 0 disables batch production")
 	flag.DurationVar(&batchTime, "batch-time", time.Second, "Batch production time")
+	flag.IntVar(&networkSize, "network-size", 0, "Expected network size to wait for before starting the network. SKips if 0")
 	flag.Parse()
 
 	slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -142,6 +144,18 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer broadcaster.Stop(ctx)
+
+	if networkSize > 0 {
+		want := networkSize - 1
+		for have := len(host.Network().Peers()); have < want; {
+			select {
+			case <-time.After(time.Second):
+				slog.Info("awaiting peers", "have", have, "want", want)
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
 
 	select {
 	case <-time.After(kickoffTimeout):
