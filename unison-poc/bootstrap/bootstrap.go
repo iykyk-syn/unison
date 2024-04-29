@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/iykyk-syn/unison/crypto/ed25519"
@@ -22,11 +23,12 @@ type Service struct {
 	host host.Host
 
 	selfPublicKey ed25519.PublicKey
+	networkSize   int
 
 	log *slog.Logger
 }
 
-func NewService(localPublicKey []byte, host host.Host) *Service {
+func NewService(localPublicKey []byte, host host.Host, networkSize int) *Service {
 	key, err := ed25519.BytesToPubKey(localPublicKey)
 	if err != nil {
 		panic(err)
@@ -35,6 +37,7 @@ func NewService(localPublicKey []byte, host host.Host) *Service {
 	return &Service{
 		host:          host,
 		selfPublicKey: key,
+		networkSize:   networkSize,
 		log:           slog.With("module", "bootstrap-svc"),
 	}
 }
@@ -69,13 +72,11 @@ func (serv *Service) Start(ctx context.Context, bootstrapper peer.AddrInfo) erro
 		return err
 	}
 
-	err = s.Close()
-	if err != nil {
-		return err
-	}
-
+	wg := sync.WaitGroup{}
 	for _, p := range peers {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			err := serv.host.Connect(ctx, p)
 			if err != nil {
 				serv.log.Error("connecting to peer", "err", err)
@@ -83,16 +84,32 @@ func (serv *Service) Start(ctx context.Context, bootstrapper peer.AddrInfo) erro
 		}()
 	}
 
+	err = s.Close()
+	if err != nil {
+		return err
+	}
+
 	serv.log.Debug("started")
 	return nil
 }
 
 // Serve starts serving bootstrap requests.
-func (serv *Service) Serve() {
+func (serv *Service) Serve(ctx context.Context) error {
+	dn := make(chan struct{})
+	wg := sync.WaitGroup{}
 	serv.host.SetStreamHandler(bootstrapProtocol, func(stream network.Stream) {
+		wg.Add(1)
+		defer wg.Done()
+
+		select {
+		case <-dn:
+		case <-ctx.Done():
+			stream.Reset()
+			return
+		}
+
 		store := serv.host.Peerstore()
 		peerIDs := store.PeersWithAddrs()
-
 		peers := make([]peer.AddrInfo, len(peerIDs))
 		for i, p := range peerIDs {
 			peers[i] = store.PeerInfo(p)
@@ -112,7 +129,29 @@ func (serv *Service) Serve() {
 		if err != nil {
 			return
 		}
+
+		if _, err = stream.Read([]byte{}); err != nil && err != io.EOF {
+			serv.log.Error(err.Error())
+		}
 	})
+
+	if serv.networkSize > 0 {
+		have, want := 0, serv.networkSize-1
+		for have < want {
+			select {
+			case <-time.After(time.Second):
+				slog.Info("awaiting peers", "have", have, "want", want)
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+			have = len(serv.host.Network().Peers())
+		}
+
+		close(dn)
+		wg.Wait()
+	}
+
+	return nil
 }
 
 const defaultStake = 1000

@@ -112,9 +112,12 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	bootstrap := bootstrap2.NewService(signer.ID(), host)
+	bootstrap := bootstrap2.NewService(signer.ID(), host, networkSize)
 	if isBootstrapper {
-		bootstrap.Serve()
+		err := bootstrap.Serve(ctx)
+		if err != nil {
+			return err
+		}
 	} else {
 		maddr, err := multiaddr.NewMultiaddr(bootstrapper)
 		if err != nil {
@@ -146,19 +149,6 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer broadcaster.Stop(ctx)
-
-	if networkSize > 0 {
-		have, want := 0, networkSize-1
-		for have < want {
-			select {
-			case <-time.After(time.Second):
-				slog.Info("awaiting peers", "have", have, "want", want)
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-			have = len(host.Network().Peers())
-		}
-	}
 
 	select {
 	case <-time.After(kickoffTimeout):
