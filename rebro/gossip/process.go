@@ -9,6 +9,7 @@ import (
 	"github.com/iykyk-syn/unison/crypto"
 	"github.com/iykyk-syn/unison/rebro"
 	"github.com/iykyk-syn/unison/rebro/gossip/gossipmsg"
+	"github.com/iykyk-syn/unison/rebro/gossip/internal/round"
 )
 
 func (bro *Broadcaster) processGossip(ctx context.Context, gsp gossipmsg.Gossip) error {
@@ -19,10 +20,10 @@ func (bro *Broadcaster) processGossip(ctx context.Context, gsp gossipmsg.Gossip)
 
 	switch gsp.Which() {
 	case gossipmsg.Gossip_Which_data:
-		bro.log.DebugContext(ctx, "processing data message")
+		// bro.log.DebugContext(ctx, "processing data message")
 		return bro.processData(ctx, gsp)
 	case gossipmsg.Gossip_Which_signature:
-		bro.log.DebugContext(ctx, "processing signature message")
+		// bro.log.DebugContext(ctx, "processing signature message")
 		return bro.processSignature(ctx, gsp)
 	default:
 		return fmt.Errorf("unknown message type")
@@ -63,12 +64,12 @@ func (bro *Broadcaster) processData(ctx context.Context, gsp gossipmsg.Gossip) e
 	}
 
 	r, err := bro.rounds.GetRound(ctx, id.Round())
-	if err != nil {
+	if err != nil && !errors.Is(err, round.ErrElapsedRound) {
 		return fmt.Errorf("getting round(%d): %w", id.Round(), err)
 	}
 	// add to quorum and prepare the certificate
 	err = r.AddCertificate(ctx, msg)
-	if err != nil {
+	if err != nil && !errors.Is(err, round.ErrClosedRound) {
 		return fmt.Errorf("adding certificate(%s) to the round(%d): %w", id.String(), id.Round(), err)
 	}
 
@@ -122,13 +123,13 @@ func (bro *Broadcaster) processSignature(ctx context.Context, gsp gossipmsg.Goss
 	}
 
 	r, err := bro.rounds.GetRound(ctx, id.Round())
-	if err != nil {
+	if err != nil && !errors.Is(err, round.ErrElapsedRound) {
 		return fmt.Errorf("getting round(%d): %w", id.Round(), err)
 	}
 
 	// ensure we have the certificate before doing expensive verification
 	_, err = r.GetCertificate(ctx, id)
-	if err != nil {
+	if err != nil && !errors.Is(err, round.ErrClosedRound) {
 		return fmt.Errorf("getting certificate(%s) for the round(%d): %w", id.String(), id.Round(), err)
 	}
 
@@ -152,7 +153,7 @@ func (bro *Broadcaster) processSignature(ctx context.Context, gsp gossipmsg.Goss
 	}
 
 	err = r.AddSignature(ctx, id, signature)
-	if err != nil {
+	if err != nil && !errors.Is(err, round.ErrClosedRound) {
 		return fmt.Errorf("adding signature from(%X) to certificate(%s), for round(%d): %w", signature.Signer, id.String(), id.Round(), err)
 	}
 

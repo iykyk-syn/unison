@@ -8,8 +8,8 @@ import (
 	"github.com/iykyk-syn/unison/rebro"
 )
 
-// errElapsedRound is thrown when a requested height was already provided to [Manager].
-var errElapsedRound = errors.New("elapsed round")
+// ErrElapsedRound is thrown when a requested height was already provided to [Manager].
+var ErrElapsedRound = errors.New("elapsed round")
 
 // Manager registers and manages lifecycles for every new [Round].
 // It also provides a simple subscription mechanism in [Manager.GetRound] operations which are fulfilled
@@ -58,7 +58,7 @@ func (rm *Manager) StartRound(roundNum uint64, qcomm rebro.QuorumCertificate) (*
 	defer rm.roundsMu.Unlock()
 
 	if rm.latestRound >= roundNum {
-		return nil, errElapsedRound
+		return nil, ErrElapsedRound
 	}
 	rm.latestRound = roundNum
 
@@ -82,7 +82,7 @@ func (rm *Manager) StopRound(ctx context.Context, roundNum uint64) error {
 	r, ok := rm.rounds[roundNum]
 	rm.roundsMu.Unlock()
 	if !ok {
-		return errElapsedRound
+		return ErrElapsedRound
 	}
 
 	err := r.Stop(ctx)
@@ -100,6 +100,11 @@ func (rm *Manager) StopRound(ctx context.Context, roundNum uint64) error {
 // GetRound gets [Round] from local map by the number or subscribes for the [Round] to come, if not found.
 func (rm *Manager) GetRound(ctx context.Context, roundNum uint64) (*Round, error) {
 	rm.roundsMu.Lock()
+	if rm.latestRound > roundNum {
+		rm.roundsMu.Unlock()
+		return nil, ErrElapsedRound
+	}
+
 	r, ok := rm.rounds[roundNum]
 	if ok {
 		rm.roundsMu.Unlock()

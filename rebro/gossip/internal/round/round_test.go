@@ -40,9 +40,9 @@ func TestRound(t *testing.T) {
 
 	// ensure we get errors after stopping
 	err = r.AddSignature(ctx, id, crypto.Signature{})
-	require.Error(t, errClosedRound)
+	require.Error(t, ErrClosedRound)
 	err = r.Stop(ctx)
-	require.Error(t, errClosedRound)
+	require.Error(t, ErrClosedRound)
 }
 
 func TestRoundSubscription(t *testing.T) {

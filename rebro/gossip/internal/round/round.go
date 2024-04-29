@@ -15,8 +15,8 @@ const (
 	subscriptionCancellationTimeout = time.Second
 )
 
-// errClosedRound singles that Round is accessed after being closed
-var errClosedRound = errors.New("closed round access")
+// ErrClosedRound singles that Round is accessed after being closed
+var ErrClosedRound = errors.New("closed round access")
 
 // Round maintains state of broadcasting rounds and local pubsub system for certificates.
 // It guards [rebro.QuorumCertificate] from concurrent access ensuring thread-safety.
@@ -59,7 +59,7 @@ func NewRound(roundNum uint64, quorum rebro.QuorumCertificate) *Round {
 func (r *Round) Stop(ctx context.Context) error {
 	select {
 	case <-r.closeCh:
-		return errClosedRound
+		return ErrClosedRound
 	default:
 	}
 
@@ -245,7 +245,7 @@ func (r *Round) execOp(ctx context.Context, op *stateOp) error {
 	select {
 	case r.stateOpCh <- op:
 	case <-r.closedCh:
-		return errClosedRound
+		return ErrClosedRound
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -254,7 +254,7 @@ func (r *Round) execOp(ctx context.Context, op *stateOp) error {
 	case <-op.doneCh:
 		return op.err
 	case <-r.closedCh:
-		return errClosedRound
+		return ErrClosedRound
 	case <-ctx.Done():
 		return ctx.Err()
 	}
