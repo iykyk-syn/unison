@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/iykyk-syn/unison/crypto/ed25519"
+	"github.com/iykyk-syn/unison/dag/quorum"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
