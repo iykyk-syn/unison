@@ -96,7 +96,7 @@ func (q *Quorum) addSignature(s crypto.Signature, cert *certificate) (bool, erro
 	}
 
 	cert.signatures = append(cert.signatures, s)
-	cert.activeStake += includer.Stake
+	cert.activeStake = safeAddClip(cert.activeStake, includer.Stake)
 	if cert.activeStake > MaxStake {
 		panic(fmt.Sprintf(
 			"Total stake exceeds MaxStake: %v; got: %v",

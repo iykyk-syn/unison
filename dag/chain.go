@@ -124,6 +124,13 @@ func (c *Chain) startRound(ctx context.Context) error {
 	}
 	c.log.InfoContext(ctx, "finished round", "height", c.height, "batches", len(newBatches), "parents", len(parents))
 
+	for _, batchHash := range blk.Batches() {
+		err := c.batchPool.Delete(ctx, batchHash)
+		if err != nil {
+			c.log.WarnContext(ctx, "can't delete a batch", "err", err)
+		}
+	}
+
 	c.height++
 	c.lastQuorum = qrm
 	return nil
