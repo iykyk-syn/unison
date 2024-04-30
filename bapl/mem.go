@@ -3,10 +3,12 @@ package bapl
 import (
 	"bytes"
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 	"time"
 )
+
+var ErrBatchDeleted = errors.New("batch deleted")
 
 type MemPool struct {
 	batchesMu   sync.Mutex
@@ -82,7 +84,7 @@ func (p *MemPool) Pull(ctx context.Context, hash []byte) (*Batch, error) {
 	select {
 	case resp, ok := <-sub:
 		if !ok {
-			return nil, fmt.Errorf("deleted")
+			return nil, ErrBatchDeleted
 		}
 		return resp, nil
 	case <-ctx.Done():
