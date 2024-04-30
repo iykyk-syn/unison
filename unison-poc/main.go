@@ -137,6 +137,7 @@ func run(ctx context.Context) error {
 	}
 
 	pool := bapl.NewMemPool()
+	defer pool.Close()
 	mcastPool := bapl.NewMulticastPool(pool, host, host.Network().Peers, signer, &batchVerifier{})
 	mcastPool.Start()
 	defer mcastPool.Stop()

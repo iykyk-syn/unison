@@ -3,18 +3,22 @@ package bapl
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"sync"
+	"time"
 )
-
-// TODO needs:
-//  * GC
-//  *
 
 type MemPool struct {
 	batchesMu   sync.Mutex
 	batchesCond sync.Cond
-	batches     map[string]*Batch
+	batches     map[string]batchEntry
 	batchesSubs map[string]map[chan *Batch]struct{}
+	closeCh     chan struct{}
+}
+
+type batchEntry struct {
+	*Batch
+	time time.Time
 }
 
 func (p *MemPool) Size(context.Context) (int, error) {
@@ -25,11 +29,17 @@ func (p *MemPool) Size(context.Context) (int, error) {
 
 func NewMemPool() *MemPool {
 	pool := &MemPool{
-		batches:     make(map[string]*Batch),
+		batches:     make(map[string]batchEntry),
 		batchesSubs: make(map[string]map[chan *Batch]struct{}),
+		closeCh:     make(chan struct{}),
 	}
 	pool.batchesCond.L = &pool.batchesMu
+	go pool.gc()
 	return pool
+}
+
+func (p *MemPool) Close() {
+	close(p.closeCh)
 }
 
 func (p *MemPool) Push(_ context.Context, batch *Batch) error {
@@ -38,7 +48,7 @@ func (p *MemPool) Push(_ context.Context, batch *Batch) error {
 	defer p.batchesCond.Broadcast()
 
 	key := string(batch.Hash())
-	p.batches[key] = batch
+	p.batches[key] = batchEntry{Batch: batch, time: time.Now()}
 
 	subs, ok := p.batchesSubs[key]
 	if ok {
@@ -47,8 +57,6 @@ func (p *MemPool) Push(_ context.Context, batch *Batch) error {
 		}
 		delete(p.batchesSubs, key)
 	}
-
-	p.batches[key] = batch
 	return nil
 }
 
@@ -58,7 +66,7 @@ func (p *MemPool) Pull(ctx context.Context, hash []byte) (*Batch, error) {
 	r, ok := p.batches[key]
 	if ok {
 		p.batchesMu.Unlock()
-		return r, nil
+		return r.Batch, nil
 	}
 
 	subs, ok := p.batchesSubs[key]
@@ -72,7 +80,10 @@ func (p *MemPool) Pull(ctx context.Context, hash []byte) (*Batch, error) {
 	p.batchesMu.Unlock()
 
 	select {
-	case resp := <-sub:
+	case resp, ok := <-sub:
+		if !ok {
+			return nil, fmt.Errorf("deleted")
+		}
 		return resp, nil
 	case <-ctx.Done():
 		// no need to keep the request, if the caller has canceled
@@ -95,7 +106,7 @@ func (p *MemPool) ListBySigner(_ context.Context, key []byte) ([]*Batch, error) 
 		var batches []*Batch
 		for _, b := range p.batches {
 			if bytes.Equal(b.Signature.Signer, key) {
-				batches = append(batches, b)
+				batches = append(batches, b.Batch)
 			}
 		}
 
@@ -114,6 +125,33 @@ func (p *MemPool) Delete(_ context.Context, hash []byte) error {
 
 	key := string(hash)
 	delete(p.batches, key)
+	for sub := range p.batchesSubs[key] {
+		close(sub)
+	}
 	delete(p.batchesSubs, key)
 	return nil
+}
+
+func (p *MemPool) gc() {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			p.batchesMu.Lock()
+			now := time.Now()
+			for key, b := range p.batches {
+				if b.time.Add(time.Minute).Before(now) {
+					delete(p.batches, key)
+					for sub := range p.batchesSubs[key] {
+						close(sub)
+					}
+					delete(p.batchesSubs, key)
+				}
+			}
+			p.batchesMu.Unlock()
+		case <-p.closeCh:
+			return
+		}
+	}
 }
