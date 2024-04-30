@@ -108,7 +108,7 @@ func run(ctx context.Context) error {
 	}
 	fmt.Println()
 
-	pubsub, err := pubsub.NewGossipSub(ctx, host)
+	pubsub, err := pubsub.NewFloodSub(ctx, host)
 	if err != nil {
 		return err
 	}
