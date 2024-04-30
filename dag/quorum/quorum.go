@@ -67,6 +67,7 @@ func (q *Quorum) List() []rebro.Certificate {
 			comms = append(comms, comm)
 		}
 	}
+	fmt.Printf("%d and %d\n", len(comms), len(q.certificates))
 	return comms
 }
 
@@ -84,8 +85,8 @@ func (q *Quorum) newCertificate(msg rebro.Message) (*certificate, error) {
 }
 
 func (q *Quorum) addSignature(s crypto.Signature, cert *certificate) (bool, error) {
-	includer := q.includers.GetByPubKey(s.Signer)
-	if includer == nil {
+	signer := q.includers.GetByPubKey(s.Signer)
+	if signer == nil {
 		return false, errors.New("the signer is not a part of includers set")
 	}
 
@@ -96,26 +97,21 @@ func (q *Quorum) addSignature(s crypto.Signature, cert *certificate) (bool, erro
 	}
 
 	cert.signatures = append(cert.signatures, s)
-	cert.activeStake = safeAddClip(cert.activeStake, includer.Stake)
-	if cert.activeStake > MaxStake {
-		panic(fmt.Sprintf(
-			"Total stake exceeds MaxStake: %v; got: %v",
-			MaxStake,
-			q.activeStake))
+	cert.activeStake = safeAddClip(cert.activeStake, signer.Stake)
+	if cert.completed {
+		// terminate if the certificate was already completed
+		return true, nil
 	}
 
-	completed := cert.activeStake >= q.stakeRequired()
-	if completed {
-		q.activeStake = safeAddClip(q.activeStake, includer.Stake)
-		if q.activeStake > MaxStake {
-			panic(fmt.Sprintf(
-				"Total stake exceeds MaxStake: %v; got: %v",
-				MaxStake,
-				q.activeStake))
-		}
-		cert.completed = true
+	cert.completed = cert.activeStake >= q.stakeRequired()
+	if !cert.completed {
+		// terminate if the certificate is still not completed
+		return false, nil
 	}
-	return completed, nil
+	// if it is - update the stake
+	includer := q.includers.GetByPubKey(cert.msg.ID.Signer())
+	q.activeStake = safeAddClip(q.activeStake, includer.Stake)
+	return true, nil
 }
 
 func (q *Quorum) stakeRequired() int64 {

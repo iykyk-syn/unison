@@ -22,8 +22,8 @@ type Chain struct {
 	includers   IncludersFn
 	signerID    crypto.PubKey
 
-	height     uint64
-	lastQuorum rebro.QuorumCertificate
+	height    uint64
+	lastCerts []rebro.Certificate
 
 	log    *slog.Logger
 	cancel context.CancelFunc
@@ -79,23 +79,9 @@ func (c *Chain) run(ctx context.Context) {
 // * create a block from the batches and the parents hashes;
 // * propagate the block and wait until quorum is reached;
 func (c *Chain) startRound(ctx context.Context) error {
-	certs := c.lastCertificates()
-	parents := make([][]byte, len(certs))
-	for i, cert := range certs {
-		parents[i] = certs[i].Message().ID.Hash()
-
-		var blk block.Block
-		err := blk.UnmarshalBinary(cert.Message().Data)
-		if err != nil {
-			panic(err)
-		}
-
-		for _, batchHash := range blk.Batches() {
-			err := c.batchPool.Delete(ctx, batchHash)
-			if err != nil {
-				c.log.WarnContext(ctx, "can't delete a batch", "err", err)
-			}
-		}
+	parents := make([][]byte, len(c.lastCerts))
+	for i, cert := range c.lastCerts {
+		parents[i] = cert.Message().ID.Hash()
 	}
 
 	newBatches, err := c.batchPool.ListBySigner(ctx, c.signerID.Bytes())
@@ -116,30 +102,31 @@ func (c *Chain) startRound(ctx context.Context) error {
 		return err
 	}
 
+	now := time.Now()
 	msg := rebro.Message{ID: blk.ID(), Data: data}
 	qrm := quorum.NewQuorum(includers)
 	err = c.broadcaster.Broadcast(ctx, msg, qrm)
 	if err != nil {
 		return err
 	}
-	c.log.InfoContext(ctx, "finished round", "height", c.height, "batches", len(newBatches), "parents", len(parents))
+	c.log.InfoContext(ctx, "finished round", "height", c.height, "batches", len(newBatches), "parents", len(parents), "time", time.Since(now))
 
-	for _, batchHash := range blk.Batches() {
-		err := c.batchPool.Delete(ctx, batchHash)
+	c.lastCerts = qrm.List()
+	for _, cert := range c.lastCerts {
+		var blk block.Block
+		err := blk.UnmarshalBinary(cert.Message().Data)
 		if err != nil {
-			c.log.WarnContext(ctx, "can't delete a batch", "err", err)
+			panic(err)
+		}
+
+		for _, batchHash := range blk.Batches() {
+			err := c.batchPool.Delete(ctx, batchHash)
+			if err != nil {
+				c.log.WarnContext(ctx, "can't delete a batch", "err", err)
+			}
 		}
 	}
 
 	c.height++
-	c.lastQuorum = qrm
 	return nil
-}
-
-func (c *Chain) lastCertificates() []rebro.Certificate {
-	if c.lastQuorum == nil {
-		return nil
-	}
-
-	return c.lastQuorum.List()
 }
