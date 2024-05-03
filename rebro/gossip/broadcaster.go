@@ -93,7 +93,7 @@ func (bro *Broadcaster) Stop(ctx context.Context) (err error) {
 }
 
 func (bro *Broadcaster) Broadcast(ctx context.Context, msg rebro.Message, qcomm rebro.QuorumCertificate) error {
-	r, err := bro.rounds.StartRound(msg.ID.Round(), qcomm)
+	r, err := bro.rounds.NewRound(ctx, msg.ID.Round(), qcomm)
 	if err != nil {
 		return err
 	}
@@ -124,8 +124,7 @@ func (bro *Broadcaster) Broadcast(ctx context.Context, msg rebro.Message, qcomm 
 		return err
 	}
 
-	// TODO: Delayed stopped to collect more signatures
-	return bro.rounds.StopRound(ctx, msg.ID.Round())
+	return nil
 }
 
 // broadcastGossip prepares and publishes a gossip to the network.

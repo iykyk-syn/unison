@@ -13,7 +13,7 @@ var ErrElapsedRound = errors.New("elapsed round")
 
 // Manager registers and manages lifecycles for every new [Round].
 // It also provides a simple subscription mechanism in [Manager.GetRound] operations which are fulfilled
-// with [Manager.StartRound].
+// with [Manager.NewRound].
 type Manager struct {
 	roundsMu    sync.Mutex
 	rounds      map[uint64]*Round
@@ -29,39 +29,23 @@ func NewManager() *Manager {
 	}
 }
 
-// Stop performs [Round.Finalize] and [Round.Stop] on all the registered instances of [Round] and
-// then terminates. This ensures we retain in-progress [Round] state.
-func (rm *Manager) Stop(ctx context.Context) error {
-	// lock manager fully and prevent any other actions Round while we stop
-	rm.roundsMu.Lock()
-	defer rm.roundsMu.Unlock()
-
-	for _, r := range rm.rounds {
-		err := r.Finalize(ctx)
-		if err != nil {
-			return err
-		}
-
-		err = rm.StopRound(ctx, r.RoundNumber())
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// StartRound instantiates and starts a new [Round].
+// NewRound instantiates a new [Round].
 // It adds the [Round] to the [Manager], notifying all the [Manager.GetRound] waiters.
-func (rm *Manager) StartRound(roundNum uint64, qcomm rebro.QuorumCertificate) (*Round, error) {
+// and atomically stops previous latest round if running.
+func (rm *Manager) NewRound(ctx context.Context, roundNum uint64, qcomm rebro.QuorumCertificate) (*Round, error) {
 	rm.roundsMu.Lock()
 	defer rm.roundsMu.Unlock()
 
 	if rm.latestRound >= roundNum {
 		return nil, ErrElapsedRound
 	}
-	rm.latestRound = roundNum
-
+	// stop latest round if exist
+	if r, ok := rm.rounds[rm.latestRound]; ok {
+		if err := rm.stopRound(ctx, r); err != nil {
+			return nil, err
+		}
+	}
+	// create the new round and notify all the subscribers
 	r := NewRound(roundNum, qcomm)
 	subs, ok := rm.roundSubs[roundNum]
 	if ok {
@@ -72,32 +56,8 @@ func (rm *Manager) StartRound(roundNum uint64, qcomm rebro.QuorumCertificate) (*
 	}
 
 	rm.rounds[roundNum] = r
+	rm.latestRound = roundNum
 	return r, nil
-}
-
-// StopRound stops [Round] and deletes it from the [Manager] together with the active subscriptions for it.
-// It does not wait for the [Round] finalization and that's a caller's concern.
-func (rm *Manager) StopRound(ctx context.Context, roundNum uint64) error {
-	rm.roundsMu.Lock()
-	r, ok := rm.rounds[roundNum]
-	rm.roundsMu.Unlock()
-	if !ok {
-		return ErrElapsedRound
-	}
-
-	err := r.Stop(ctx)
-	if err != nil {
-		return err
-	}
-
-	rm.roundsMu.Lock()
-	delete(rm.rounds, roundNum)
-	for sub := range rm.roundSubs[roundNum] {
-		close(sub)
-	}
-	delete(rm.roundSubs, roundNum)
-	rm.roundsMu.Unlock()
-	return nil
 }
 
 // GetRound gets [Round] from local map by the number or subscribes for the [Round] to come, if not found.
@@ -140,4 +100,42 @@ func (rm *Manager) GetRound(ctx context.Context, roundNum uint64) (*Round, error
 		rm.roundsMu.Unlock()
 		return nil, ctx.Err()
 	}
+}
+
+// Stop performs [Round.Finalize] and [Round.Stop] on all the registered instances of [Round] and
+// then terminates. This ensures we retain in-progress [Round] state.
+func (rm *Manager) Stop(ctx context.Context) error {
+	// lock manager fully and prevent any other actions Round while we stop
+	rm.roundsMu.Lock()
+	defer rm.roundsMu.Unlock()
+
+	for _, r := range rm.rounds {
+		err := r.Finalize(ctx)
+		if err != nil {
+			return err
+		}
+
+		err = rm.stopRound(ctx, r)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// stopRound stops [Round] and deletes it from the [Manager] together with the active subscriptions
+// for it. It does not wait for the [Round] finalization and that's a caller's concern.
+func (rm *Manager) stopRound(ctx context.Context, r *Round) error {
+	err := r.Stop(ctx)
+	if err != nil {
+		return err
+	}
+
+	delete(rm.rounds, r.RoundNumber())
+	for sub := range rm.roundSubs[r.RoundNumber()] {
+		close(sub)
+	}
+	delete(rm.roundSubs, r.RoundNumber())
+	return nil
 }
