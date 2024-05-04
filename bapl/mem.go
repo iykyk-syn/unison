@@ -134,16 +134,22 @@ func (p *MemPool) Delete(_ context.Context, hash []byte) error {
 	return nil
 }
 
+var (
+	gcTime     = time.Second * 10
+	staleAfter = time.Minute
+)
+
+// gc periodically cleans up stale batches
 func (p *MemPool) gc() {
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(gcTime)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			p.batchesMu.Lock()
 			now := time.Now()
+			p.batchesMu.Lock()
 			for key, b := range p.batches {
-				if b.time.Add(time.Minute).Before(now) {
+				if b.time.Add(staleAfter).Before(now) {
 					delete(p.batches, key)
 					for sub := range p.batchesSubs[key] {
 						close(sub)
