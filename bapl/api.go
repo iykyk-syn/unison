@@ -11,6 +11,7 @@ import (
 type Batch struct {
 	Data      []byte
 	Signature crypto.Signature
+	Included  bool
 }
 
 func (b *Batch) Hash() []byte {

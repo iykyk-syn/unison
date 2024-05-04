@@ -24,6 +24,7 @@ type Chain struct {
 
 	height    uint64
 	lastCerts []rebro.Certificate
+	lastBlk   *block.Block
 
 	log    *slog.Logger
 	cancel context.CancelFunc
@@ -111,14 +112,17 @@ func (c *Chain) startRound(ctx context.Context) error {
 	}
 	c.log.InfoContext(ctx, "finished round", "height", c.height, "batches", len(newBatches), "parents", len(parents), "time", time.Since(now))
 
-	for _, batchHash := range blk.Batches() {
-		err := c.batchPool.Delete(ctx, batchHash)
-		if err != nil {
-			c.log.WarnContext(ctx, "can't delete a batch", "err", err)
+	if c.lastBlk != nil {
+		for _, batchHash := range c.lastBlk.Batches() {
+			err := c.batchPool.Delete(ctx, batchHash)
+			if err != nil {
+				c.log.WarnContext(ctx, "can't delete a batch", "err", err)
+			}
 		}
 	}
 
 	c.lastCerts = qrm.List()
+	c.lastBlk = blk
 	c.height++
 	return nil
 }

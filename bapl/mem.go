@@ -107,7 +107,7 @@ func (p *MemPool) ListBySigner(_ context.Context, key []byte) ([]*Batch, error) 
 	for {
 		var batches []*Batch
 		for _, b := range p.batches {
-			if bytes.Equal(b.Signature.Signer, key) {
+			if bytes.Equal(b.Signature.Signer, key) && !b.Included {
 				batches = append(batches, b.Batch)
 			}
 		}
