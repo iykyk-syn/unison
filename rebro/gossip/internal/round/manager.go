@@ -15,7 +15,7 @@ var ErrElapsedRound = errors.New("elapsed round")
 // It also provides a simple subscription mechanism in [Manager.GetRound] operations which are fulfilled
 // with [Manager.NewRound].
 type Manager struct {
-	roundsMu    sync.Mutex
+	roundsMu    sync.RWMutex
 	rounds      map[uint64]*Round
 	roundSubs   map[uint64]map[chan *Round]struct{}
 	latestRound uint64
@@ -35,7 +35,7 @@ func NewManager() *Manager {
 func (rm *Manager) NewRound(ctx context.Context, roundNum uint64, qcomm rebro.QuorumCertificate) (*Round, error) {
 	rm.roundsMu.Lock()
 	defer rm.roundsMu.Unlock()
-
+	// do not allow rounds that already existed
 	if rm.latestRound >= roundNum {
 		return nil, ErrElapsedRound
 	}
@@ -47,33 +47,43 @@ func (rm *Manager) NewRound(ctx context.Context, roundNum uint64, qcomm rebro.Qu
 	}
 	// create the new round and notify all the subscribers
 	r := NewRound(roundNum, qcomm)
-	subs, ok := rm.roundSubs[roundNum]
-	if ok {
-		for sub := range subs {
-			sub <- r // subs are always buffered, so this won't block
-		}
-		delete(rm.roundSubs, roundNum)
-	}
-
 	rm.rounds[roundNum] = r
 	rm.latestRound = roundNum
+	rm.publish(r)
 	return r, nil
+}
+
+// publish notifies subscribers if any
+func (rm *Manager) publish(r *Round) {
+	subs, ok := rm.roundSubs[r.RoundNumber()]
+	if !ok {
+		return
+	}
+
+	for sub := range subs {
+		sub <- r // subs are always buffered, so this won't block
+	}
+	delete(rm.roundSubs, r.RoundNumber())
 }
 
 // GetRound gets [Round] from local map by the number or subscribes for the [Round] to come, if not found.
 func (rm *Manager) GetRound(ctx context.Context, roundNum uint64) (*Round, error) {
-	rm.roundsMu.Lock()
-	if rm.latestRound > roundNum {
-		rm.roundsMu.Unlock()
+	rm.roundsMu.RLock()
+	r, ok := rm.rounds[roundNum]
+	latestRound := rm.latestRound
+	rm.roundsMu.RUnlock()
+	if ok {
+		return r, nil
+	} else if latestRound > roundNum {
 		return nil, ErrElapsedRound
 	}
 
-	r, ok := rm.rounds[roundNum]
-	if ok {
-		rm.roundsMu.Unlock()
-		return r, nil
-	}
+	return rm.subscribe(ctx, roundNum)
+}
 
+// subscribe subscribes for a [Round] until it's available or context gets cancelled.
+func (rm *Manager) subscribe(ctx context.Context, roundNum uint64) (*Round, error) {
+	rm.roundsMu.Lock()
 	subs, ok := rm.roundSubs[roundNum]
 	if !ok {
 		subs = make(map[chan *Round]struct{})
