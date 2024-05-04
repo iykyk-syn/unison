@@ -231,5 +231,5 @@ func (p *MulticastPool) rcvBatch(s network.Stream) error {
 		return fmt.Errorf("pushing Batch: %w", err)
 	}
 
-	return nil
+	return s.Close()
 }
