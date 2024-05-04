@@ -24,7 +24,6 @@ type Chain struct {
 
 	height    uint64
 	lastCerts []rebro.Certificate
-	lastBlk   *block.Block
 
 	log    *slog.Logger
 	cancel context.CancelFunc
@@ -87,10 +86,11 @@ func (c *Chain) startRound(ctx context.Context) error {
 
 	newBatches, err := c.batchPool.ListBySigner(ctx, c.signerID.Bytes())
 	if err != nil {
-		return fmt.Errorf("can't get batches for the new height:%w", err)
+		return fmt.Errorf("can't get batches for the new height: %w", err)
 	}
 
 	// TODO: certificate signatures should be the part of the block.
+	c.log.InfoContext(ctx, "broadcasting round", "height", c.height, "batches", len(newBatches), "parents", len(parents))
 	blk := block.NewBlock(c.height, c.signerID.Bytes(), newBatches, parents)
 	blk.Hash() // TODO: Compute in constructor
 	data, err := blk.MarshalBinary()
@@ -110,19 +110,9 @@ func (c *Chain) startRound(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.log.InfoContext(ctx, "finished round", "height", c.height, "batches", len(newBatches), "parents", len(parents), "time", time.Since(now))
-
-	if c.lastBlk != nil {
-		for _, batchHash := range c.lastBlk.Batches() {
-			err := c.batchPool.Delete(ctx, batchHash)
-			if err != nil {
-				c.log.WarnContext(ctx, "can't delete a batch", "err", err)
-			}
-		}
-	}
+	c.log.InfoContext(ctx, "finished round", "height", c.height, "time", time.Since(now))
 
 	c.lastCerts = qrm.List()
-	c.lastBlk = blk
 	c.height++
 	return nil
 }

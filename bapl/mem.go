@@ -99,7 +99,7 @@ func (p *MemPool) Pull(ctx context.Context, hash []byte) (*Batch, error) {
 	}
 }
 
-func (p *MemPool) ListBySigner(_ context.Context, key []byte) ([]*Batch, error) {
+func (p *MemPool) ListBySigner(_ context.Context, signer []byte) ([]*Batch, error) {
 	p.batchesMu.Lock()
 	defer p.batchesMu.Unlock()
 
@@ -107,17 +107,16 @@ func (p *MemPool) ListBySigner(_ context.Context, key []byte) ([]*Batch, error) 
 	for {
 		var batches []*Batch
 		for _, b := range p.batches {
-			if bytes.Equal(b.Signature.Signer, key) && !b.Included {
+			if bytes.Equal(b.Signature.Signer, signer) && !b.Included {
 				batches = append(batches, b.Batch)
 			}
 		}
 
-		if len(batches) == 0 {
-			p.batchesCond.Wait()
-			continue
+		if len(batches) > 0 {
+			return batches, nil
 		}
 
-		return batches, nil
+		p.batchesCond.Wait()
 	}
 }
 
