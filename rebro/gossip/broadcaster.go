@@ -18,7 +18,7 @@ import (
 	"github.com/iykyk-syn/unison/rebro/gossip/internal/round"
 )
 
-var ValidationTimeout = time.Second * 30
+var ValidationTimeout = time.Minute
 
 type Broadcaster struct {
 	networkID rebro.NetworkID
