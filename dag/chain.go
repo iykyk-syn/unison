@@ -90,7 +90,6 @@ func (c *Chain) startRound(ctx context.Context) error {
 	}
 
 	// TODO: certificate signatures should be the part of the block.
-	c.log.InfoContext(ctx, "broadcasting round", "height", c.height, "batches", len(newBatches), "parents", len(parents))
 	blk := block.NewBlock(c.height, c.signerID.Bytes(), newBatches, parents)
 	blk.Hash() // TODO: Compute in constructor
 	data, err := blk.MarshalBinary()
@@ -102,7 +101,7 @@ func (c *Chain) startRound(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
+	c.log.InfoContext(ctx, "broadcasting round", "height", c.height, "hash", blk.ID().String())
 	now := time.Now()
 	msg := rebro.Message{ID: blk.ID(), Data: data}
 	qrm := quorum.NewQuorum(includers)
@@ -110,7 +109,7 @@ func (c *Chain) startRound(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.log.InfoContext(ctx, "finished round", "height", c.height, "time", time.Since(now))
+	c.log.InfoContext(ctx, "finished round", "height", c.height, "batches", len(newBatches), "parents", len(parents), "time", time.Since(now))
 
 	c.lastCerts = qrm.List()
 	c.height++
