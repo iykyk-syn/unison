@@ -24,8 +24,9 @@ func NewBlock(
 	parents [][]byte,
 ) *Block {
 	hashes := make([][]byte, len(batches))
-	for i := range batches {
+	for i, b := range batches {
 		hashes[i] = batches[i].Hash()
+		b.Included = true
 	}
 
 	id := &blockID{round: round, signer: singer}
