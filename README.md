@@ -12,7 +12,8 @@ with [Shoal](https://arxiv.org/pdf/2306.03058.pdf) and [Pilotfish](https://arxiv
 ## Packages
 List of currently implemented packages with implementation status:
 
-* 🔴 [unison-poc](./unison-poc) - Runnable Proof of Concept of Unison project
+* 🔴 [unison-poc](./unison-poc) - Runnable Proof of Concept of Unison project achieving 12MB/s data throughput across 30 
+geographically distributed nodes
 * 🟡 [dag](./dag) - DAG chain implementation
 * 🟢 [rebro](./rebro) - Reliable Broadcast
 * 🟢 [bapl](./bapl) - Batch Pool with multicast and im-memory implementations

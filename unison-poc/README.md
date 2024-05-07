@@ -1,9 +1,20 @@
 # Unison PoC
 
-This PoC runs a Unison network of predefined amount of peers. Peers connect through the bootstrapper which PEx his peer 
-table to all non-bootstrapper nodes. Every peer automatically joins the quorum, gets assigned 1000 stake and starts
-producing bogus data with configurable rate. In the end, we get a network of peer producing a DAG chain of blocks
-with every contributing.
+This PoC is aims to show the throughput capabilities of Unison. It achieves 12MB/s throughput of certified data with
+30 geographically distributed nodes deployed [Vultr](https://www.vultr.com) using ansible.
+> NOTE: The deployment scripts are not part of this repo.
+
+The PoC application runs a Unison network of predefined amount of peers. Peers connect through the bootstrapper which 
+PEx his peer table to all non-bootstrapper nodes. Every peer automatically joins the quorum, gets assigned 1000 stake 
+and starts producing bogus data with configurable rate. In the end, we get a network of peer producing a DAG chain of 
+blocks with every node contributing to the throughput.
+
+### Usage
+```shell
+git clone https://github.com/iykyk-syn/unison
+cd unison
+go instll -o ./unison ./unison-poc
+```
 
 ```text
 Usage of ./unison:
