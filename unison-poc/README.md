@@ -13,7 +13,7 @@ blocks with every node contributing to the throughput.
 ```shell
 git clone https://github.com/iykyk-syn/unison
 cd unison
-go instll -o ./unison ./unison-poc
+go build -o ./unison ./unison-poc
 ```
 
 ```text
