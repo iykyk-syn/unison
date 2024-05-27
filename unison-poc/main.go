@@ -25,7 +25,7 @@ import (
 	"github.com/iykyk-syn/unison/rebro/gossip"
 	bootstrap2 "github.com/iykyk-syn/unison/unison-poc/bootstrap"
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-pubsub"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	p2phost "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -42,6 +42,8 @@ var (
 	batchSize      int
 	batchTime      time.Duration
 	networkSize    int
+	listenPort     int
+	keyPath        string
 )
 
 func init() {
@@ -50,7 +52,9 @@ func init() {
 	flag.DurationVar(&kickoffTimeout, "kickoff-timeout", time.Second*5, "Timeout before starting block production")
 	flag.IntVar(&batchSize, "batch-size", 2000*125, "Batch size to be produced every 'batch-time' (bytes). 0 disables batch production")
 	flag.DurationVar(&batchTime, "batch-time", time.Second, "Batch production time")
-	flag.IntVar(&networkSize, "network-size", 0, "Expected network size to wait for before starting the network. SKips if 0")
+	flag.IntVar(&networkSize, "network-size", 0, "Expected network size to wait for before starting the network. Skips if 0")
+	flag.IntVar(&listenPort, "listen-port", 10000, "Port to listen on for libp2p connections")
+	flag.StringVar(&keyPath, "key-path", "/.unison/key", "Path to the p2p private key")
 	flag.Parse()
 
 	slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -68,7 +72,7 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	p2pKey, privKey, err := getIdentity()
+	p2pKey, privKey, err := getIdentity(keyPath)
 	if err != nil {
 		return err
 	}
@@ -79,8 +83,8 @@ func run(ctx context.Context) error {
 	}
 
 	listenAddrs := []string{
-		"/ip4/0.0.0.0/udp/10000/quic-v1",
-		"/ip6/::/udp/10000/quic-v1",
+		fmt.Sprintf("/ip4/0.0.0.0/udp/%d/quic-v1", listenPort),
+		fmt.Sprintf("/ip6/::/udp/%d/quic-v1", listenPort),
 	}
 	listenMAddrs := make([]multiaddr.Multiaddr, 0, len(listenAddrs))
 	for _, s := range listenAddrs {
@@ -158,13 +162,13 @@ func run(ctx context.Context) error {
 		return ctx.Err()
 	}
 
-	memebers, err := bootstrap.GetMembers(0)
+	members, err := bootstrap.GetMembers(0)
 	if err != nil {
 		return err
 	}
 
 	dagger := dag.NewChain(broadcaster, mcastPool, func(round uint64) (*quorum.Includers, error) {
-		return memebers, nil
+		return members, nil
 	}, privKey.PubKey())
 	dagger.Start()
 	defer dagger.Stop()
@@ -179,24 +183,26 @@ func run(ctx context.Context) error {
 	return nil
 }
 
-const dir = "/.unison"
-
-func getIdentity() (libp2pcrypto.PrivKey, crypto.PrivKey, error) {
+func getIdentity(keyPath string) (libp2pcrypto.PrivKey, crypto.PrivKey, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	dir := home + dir
-	if err = os.Mkdir(dir, os.ModePerm); err != nil && !errors.Is(err, os.ErrExist) {
+	if keyPath == "" {
+		keyPath = "/.unison/key"
+	}
+	fullPath := home + keyPath
+
+	dir := home + "/.unison"
+	if err = os.MkdirAll(dir, os.ModePerm); err != nil && !errors.Is(err, os.ErrExist) {
 		return nil, nil, err
 	}
 
 	var keyBytes []byte
-	path := dir + "/key"
-	f, err := os.Open(path)
+	f, err := os.Open(fullPath)
 	if err != nil {
-		f, err = os.Create(path)
+		f, err = os.Create(fullPath)
 		if err != nil {
 			return nil, nil, err
 		}
