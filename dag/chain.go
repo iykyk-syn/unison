@@ -50,7 +50,6 @@ func (c *Chain) Start() {
 	c.cancel = cancel
 	go c.run(ctx)
 	c.log.Debug("started")
-	return
 }
 
 func (c *Chain) Stop() {
@@ -64,7 +63,7 @@ func (c *Chain) run(ctx context.Context) {
 		if err != nil {
 			c.log.ErrorContext(ctx, "executing round", "reason", err)
 			// temporary and hacky solution.
-			// TODO: remove this in favour of better approach
+			// TODO: remove this in favor of better approach
 			time.Sleep(time.Second * 3)
 		}
 	}
@@ -74,14 +73,27 @@ func (c *Chain) run(ctx context.Context) {
 //
 // assembling stages:
 // * collect block hashes from last height as parent hashes
-// * cleanup batches commited in blocks from last height
-// * prepare the new uncommited batches
+// * cleanup batches committed in blocks from last height
+// * prepare the new uncommitted batches
 // * create a block from the batches and the parents hashes;
 // * propagate the block and wait until quorum is reached;
 func (c *Chain) startRound(ctx context.Context) error {
 	parents := make([][]byte, len(c.lastCerts))
 	for i, cert := range c.lastCerts {
 		parents[i] = cert.Message().ID.Hash()
+
+		var blk block.Block
+		err := blk.UnmarshalBinary(cert.Message().Data)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, batchHash := range blk.Batches() {
+			err := c.batchPool.Delete(ctx, batchHash)
+			if err != nil {
+				c.log.WarnContext(ctx, "can't delete a batch", "err", err)
+			}
+		}
 	}
 
 	newBatches, err := c.batchPool.ListBySigner(ctx, c.signerID.Bytes())
@@ -109,24 +121,14 @@ func (c *Chain) startRound(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.log.InfoContext(ctx, "finished round", "height", c.height, "batches", len(newBatches), "parents", len(parents), "time", time.Since(now))
+	c.log.InfoContext(ctx, "finished round",
+		"height", c.height,
+		"batches", len(newBatches),
+		"parents", len(parents),
+		"time", time.Since(now),
+	)
 
 	c.lastCerts = qrm.List()
-	for _, cert := range c.lastCerts {
-		var blk block.Block
-		err := blk.UnmarshalBinary(cert.Message().Data)
-		if err != nil {
-			panic(err)
-		}
-
-		for _, batchHash := range blk.Batches() {
-			err := c.batchPool.Delete(ctx, batchHash)
-			if err != nil {
-				c.log.WarnContext(ctx, "can't delete a batch", "err", err)
-			}
-		}
-	}
-
 	c.height++
 	return nil
 }

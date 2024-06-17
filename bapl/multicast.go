@@ -2,6 +2,7 @@ package bapl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -32,7 +33,13 @@ type MulticastPool struct {
 	log *slog.Logger
 }
 
-func NewMulticastPool(pool BatchPool, host host.Host, includers FetchIncludersFn, signer crypto.Signer, verifier BatchVerifier) *MulticastPool {
+func NewMulticastPool(
+	pool BatchPool,
+	host host.Host,
+	includers FetchIncludersFn,
+	signer crypto.Signer,
+	verifier BatchVerifier,
+) *MulticastPool {
 	return &MulticastPool{
 		pool:       pool,
 		host:       host,
@@ -169,10 +176,13 @@ func (p *MulticastPool) sendBatch(ctx context.Context, batch *Batch, to peer.ID)
 		return err
 	}
 	// await ack from the other side
-	if _, err = stream.Read([]byte{0}); err != nil && err != io.EOF {
+
+	_, err = stream.Read([]byte{0})
+	switch {
+	case err == nil, errors.Is(err, io.EOF):
+	default:
 		return fmt.Errorf("awaiting acknowledgement: %w", err)
 	}
-
 	return nil
 }
 

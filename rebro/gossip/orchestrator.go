@@ -15,7 +15,13 @@ func NewOrchestrator(ps *pubsub.PubSub) *Orchestrator {
 	return &Orchestrator{pubsub: ps}
 }
 
-func (o *Orchestrator) NewBroadcaster(nid rebro.NetworkID, signer crypto.Signer, certifier rebro.Certifier, hasher rebro.Hasher, decoder rebro.MessageIDDecoder) (rebro.Broadcaster, error) {
+func (o *Orchestrator) NewBroadcaster(
+	nid rebro.NetworkID,
+	signer crypto.Signer,
+	certifier rebro.Certifier,
+	hasher rebro.Hasher,
+	decoder rebro.MessageIDDecoder,
+) (rebro.Broadcaster, error) {
 	bro := NewBroadcaster(nid, signer, certifier, hasher, decoder, o.pubsub)
 	return bro, bro.Start()
 }

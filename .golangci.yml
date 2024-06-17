@@ -1,0 +1,70 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - bidichk
+    - bodyclose
+    - dogsled
+    - dupl
+    - errcheck
+    - errorlint
+    - exportloopref
+    - gocheckcompilerdirectives
+    - goconst
+    - gocritic
+    - gofmt
+    - gofumpt
+    - goimports
+    - revive
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - loggercheck
+    - misspell
+    - nakedret
+    - nilerr
+    - nilnil
+    - nolintlint
+    - prealloc
+    - protogetter
+    - exportloopref
+    - staticcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unused
+    - wastedassign
+    - whitespace
+    - nolintlint
+    - asciicheck
+    - dupword
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - revive
+    - linters:
+        - lll
+      source: "https://"
+  max-same-issues: 50
+
+linters-settings:
+  dogsled:
+    max-blank-identifiers: 3
+  golint:
+    min-confidence: 0
+  maligned:
+    suggest-new: true
+  misspell:
+    locale: US
+  goimports:
+    local-prefixes: github.com/iykyk/unison
+  dupl:
+    threshold: 200
+  gofumpt:
+    extra-rules: true

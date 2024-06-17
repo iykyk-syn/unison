@@ -70,7 +70,7 @@ func TestBroadcaster(t *testing.T) {
 func broadcasterGood(t *testing.T, host host.Host) *Broadcaster {
 	psub, err := pubsub.NewGossipSub(context.Background(), host, pubsub.WithMessageSignaturePolicy(pubsub.StrictNoSign))
 	require.NoError(t, err)
-	bro := NewBroadcaster(testNetworkID, newTestSigner(), &testCertifier{}, &testHasher{}, unmarshalMessageID, psub)
+	bro := NewBroadcaster(testNetworkID, newTestSigner(), &testCertifier{}, &testHasher{}, unmarshalmessageID, psub)
 	return bro
 }
 
@@ -102,20 +102,20 @@ func start(t *testing.T, bros []*Broadcaster) {
 
 func message(round int, bro *Broadcaster) rebro.Message {
 	data := make([]byte, 1024)
-	rand.Read(data)
+	rand.Read(data) //nolint: errcheck
 
 	hash := sha256.New()
 	hash.Write(data)
 	digest := hash.Sum(nil)
 
-	msgId := &messageId{
+	msgID := &messageID{
 		round:  uint64(round),
 		signer: bro.signer.ID(),
 		hash:   digest,
 	}
 
 	return rebro.Message{
-		ID:   msgId,
+		ID:   msgID,
 		Data: data,
 	}
 }
@@ -144,7 +144,7 @@ func newTestSigner() *testSigner {
 func (t *testSigner) Sign(bytes []byte) (crypto2.Signature, error) {
 	sig, err := t.privkey.Sign(rand.Reader, bytes, crypto.Hash(0))
 	if err != nil {
-		return crypto2.Signature{}, nil
+		return crypto2.Signature{}, err
 	}
 
 	return crypto2.Signature{
@@ -163,8 +163,7 @@ func (t *testSigner) Verify(bytes []byte, signature crypto2.Signature) error {
 	return nil
 }
 
-type testHasher struct {
-}
+type testHasher struct{}
 
 func (t *testHasher) Hash(msg rebro.Message) ([]byte, error) {
 	hash := sha256.New()
@@ -172,60 +171,59 @@ func (t *testHasher) Hash(msg rebro.Message) ([]byte, error) {
 	return hash.Sum(nil), nil
 }
 
-type testCertifier struct {
-}
+type testCertifier struct{}
 
 func (t testCertifier) Certify(ctx context.Context, message rebro.Message) error {
 	// simply accept for now
 	return nil
 }
 
-type messageId struct {
+type messageID struct {
 	round  uint64
 	signer []byte
 	hash   []byte
 }
 
-func (m *messageId) Round() uint64 {
+func (m *messageID) Round() uint64 {
 	return m.round
 }
 
-func (m *messageId) Signer() []byte {
+func (m *messageID) Signer() []byte {
 	return m.signer
 }
 
-func (m *messageId) Hash() []byte {
+func (m *messageID) Hash() []byte {
 	return m.hash
 }
 
-func (m *messageId) String() string {
+func (m *messageID) String() string {
 	return fmt.Sprintf("%X", m.hash)
 }
 
-func (m *messageId) New() *messageId {
-	return &messageId{}
+func (m *messageID) New() *messageID {
+	return &messageID{}
 }
 
-func (m *messageId) MarshalBinary() (buf []byte, err error) {
+func (m *messageID) MarshalBinary() (buf []byte, err error) {
 	buf = binary.LittleEndian.AppendUint64(buf, m.round)
 	buf = append(buf, m.signer...)
 	buf = append(buf, m.hash...)
 	return buf, nil
 }
 
-func (m *messageId) UnmarshalBinary(bytes []byte) error {
+func (m *messageID) UnmarshalBinary(bytes []byte) error {
 	m.round = binary.LittleEndian.Uint64(bytes)
 	m.signer = bytes[8 : 8+32]
 	m.hash = bytes[8+32:]
 	return nil
 }
 
-func (m *messageId) Validate() error {
+func (m *messageID) Validate() error {
 	return nil
 }
 
-func unmarshalMessageID(bytes []byte) (rebro.MessageID, error) {
-	var id messageId
+func unmarshalmessageID(bytes []byte) (rebro.MessageID, error) {
+	var id messageID
 	return &id, id.UnmarshalBinary(bytes)
 }
 
@@ -234,7 +232,6 @@ type quorum struct {
 	Size      int
 	Threshold int
 	comms     map[string]*certificate
-	finalized int
 }
 
 func newQuorum(size, threshold int) *quorum {

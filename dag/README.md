@@ -10,3 +10,9 @@ parent blocks(thus DAG) and batch hashes(thus compact).
 `dag/quorum` contains stake-weighted quorum and actual certificates implementation. Quorum defaults to 2f+(where f is 1/3)
 fault tolerance. It guarantees every round(height) produces blocks with at least 2f+1 power(by summing stakes of each 
 block producer) and that every block gets at least 2f+1 signatures.
+
+Below u can see the difference between the regular blockchains and DAG-chains in the diagram. The DAG-chain have multiple
+proposers in per chain height, whereas in regular chains proposers are rotated. In-turn, this provides better censorship
+resistance, lack of central point of failure and higher data throughput.
+
+![](./img/diagram.svg)

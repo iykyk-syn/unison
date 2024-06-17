@@ -19,10 +19,10 @@ type Includer struct {
 	Stake int64
 }
 
-func NewIncluder(pK crypto.PubKey, Stake int64) *Includer {
+func NewIncluder(pK crypto.PubKey, stake int64) *Includer {
 	return &Includer{
 		PubKey: pK,
-		Stake:  Stake,
+		Stake:  stake,
 	}
 }
 

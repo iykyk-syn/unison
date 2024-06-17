@@ -3,7 +3,6 @@ package quorum
 import (
 	"bytes"
 	"errors"
-	"fmt"
 
 	"github.com/iykyk-syn/unison/crypto"
 	"github.com/iykyk-syn/unison/rebro"
@@ -67,7 +66,6 @@ func (q *Quorum) List() []rebro.Certificate {
 			comms = append(comms, comm)
 		}
 	}
-	fmt.Printf("%d and %d\n", len(comms), len(q.certificates))
 	return comms
 }
 
