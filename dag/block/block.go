@@ -66,7 +66,7 @@ func (b *Block) String() string {
 func (b *Block) MarshalBinary() ([]byte, error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
-		return nil, fmt.Errorf("creating a segemnt for capnp:%w", err)
+		return nil, fmt.Errorf("creating a segemnt for capnp: %w", err)
 	}
 
 	block, err := block.NewRootBlock(seg)

@@ -39,12 +39,12 @@ func (id *blockID) String() string {
 func (id *blockID) MarshalBinary() ([]byte, error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
-		return nil, fmt.Errorf("creating a segemnt for capnp:%w", err)
+		return nil, fmt.Errorf("creating a segemnt for capnp: %w", err)
 	}
 
 	blockID, err := block.NewRootBlockID(seg)
 	if err != nil {
-		return nil, fmt.Errorf("converting segment to message id:%w", err)
+		return nil, fmt.Errorf("converting segment to message id: %w", err)
 	}
 
 	err = blockID.SetHash(id.hash)

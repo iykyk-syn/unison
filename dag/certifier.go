@@ -26,7 +26,7 @@ func (c *certifier) Certify(ctx context.Context, msg rebro.Message) error {
 	}
 	err := msg.ID.Validate()
 	if err != nil {
-		return fmt.Errorf("validating blockID:%w", err)
+		return fmt.Errorf("validating blockID: %w", err)
 	}
 
 	blk := &block.Block{}
