@@ -90,6 +90,7 @@ func (serv *Service) Start(ctx context.Context, bootstrapper peer.AddrInfo) erro
 		return err
 	}
 
+	wg.Wait()
 	serv.log.Debug("started")
 	return nil
 }
