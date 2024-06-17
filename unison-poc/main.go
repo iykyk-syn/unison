@@ -73,6 +73,7 @@ func main() {
 
 	err := run(ctx)
 	if err != nil {
+		fmt.Println(err)
 		defer os.Exit(1)
 		return
 	}
