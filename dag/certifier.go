@@ -43,7 +43,7 @@ func (c *certifier) Certify(ctx context.Context, msg rebro.Message) error {
 	for _, hash := range blk.Batches() {
 		_, err = c.pool.Pull(ctx, hash)
 		if err != nil && !errors.Is(err, bapl.ErrBatchDeleted) { // TODO: This is a temporary workaround
-			return fmt.Errorf("getting bacth hash %v", err)
+			return fmt.Errorf("getting bacth hash %w", err)
 		}
 	}
 
