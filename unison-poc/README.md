@@ -19,17 +19,20 @@ go build -o ./unison ./unison-poc
 ```text
 Usage of ./unison:
   -batch-size int
-        Batch size to be produced every 'batch-time' (bytes). 0 disables batch production (default 250000)
+    	Batch size to be produced every 'batch-time' (bytes). 0 disables batch production (default 250000)
   -batch-time duration
-        Batch production time (default 1s)
+    	Batch production time (default 1s)
   -bootstrapper string
-        Specifies network bootstrapper multiaddr
+    	Specifies network bootstrapper multiaddr
   -is-bootstrapper
-        To indicate node is bootstrapper
+    	To indicate node is bootstrapper
+  -key-path string
+    	Path to the p2p private key (default "/.unison/key")
   -kickoff-timeout duration
-        Timeout before starting block production (default 5s)
+    	Timeout before starting block production (default 5s)
+  -listen-port int
+    	Port to listen on for libp2p connections (default 10000)
   -network-size int
-        Expected network size to wait for before starting the network. SKips if 0
-
+    	Expected network size to wait for before starting the network. Skips if 0
 ```
 
