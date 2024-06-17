@@ -71,7 +71,7 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 
 	block, err := block.NewRootBlock(seg)
 	if err != nil {
-		return nil, fmt.Errorf("converting segment to message id:%w", err)
+		return nil, fmt.Errorf("converting segment to message id: %w", err)
 	}
 
 	block.SetRound(b.blockID.round)
