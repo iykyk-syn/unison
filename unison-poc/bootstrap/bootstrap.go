@@ -48,7 +48,7 @@ func (serv *Service) Start(ctx context.Context, bootstrapper peer.AddrInfo) erro
 	if err != nil {
 		return fmt.Errorf("connecting to bootstrapper: %w", err)
 	}
-	serv.log.DebugContext(ctx, "connected to bootstrapper")
+	serv.log.DebugContext(ctx, "connected to bootstrapper", "addr", bootstrapper.Addrs)
 
 	// this gives time for connections to settle on the bootstrapper and gets us all the peers
 	select {
@@ -81,6 +81,10 @@ func (serv *Service) Start(ctx context.Context, bootstrapper peer.AddrInfo) erro
 			if err != nil {
 				serv.log.Error("connecting to peer", "err", err)
 			}
+			slog.DebugContext(ctx, "connected to peer",
+				"peer", s.Conn().RemotePeer(),
+				"stream", s.ID(),
+				"protocol", s.Protocol())
 		}()
 	}
 

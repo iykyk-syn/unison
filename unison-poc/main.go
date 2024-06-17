@@ -25,7 +25,7 @@ import (
 	"github.com/iykyk-syn/unison/rebro/gossip"
 	bootstrap2 "github.com/iykyk-syn/unison/unison-poc/bootstrap"
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-pubsub"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	p2phost "github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -42,6 +42,8 @@ var (
 	batchSize      int
 	batchTime      time.Duration
 	networkSize    int
+	listenPort     int
+	keyPath        string
 )
 
 func init() {
@@ -50,7 +52,9 @@ func init() {
 	flag.DurationVar(&kickoffTimeout, "kickoff-timeout", time.Second*5, "Timeout before starting block production")
 	flag.IntVar(&batchSize, "batch-size", 2000*125, "Batch size to be produced every 'batch-time' (bytes). 0 disables batch production")
 	flag.DurationVar(&batchTime, "batch-time", time.Second, "Batch production time")
-	flag.IntVar(&networkSize, "network-size", 0, "Expected network size to wait for before starting the network. SKips if 0")
+	flag.IntVar(&networkSize, "network-size", 0, "Expected network size to wait for before starting the network. Skips if 0")
+	flag.IntVar(&listenPort, "listen-port", 10000, "Port to listen on for libp2p connections")
+	flag.StringVar(&keyPath, "key-path", "", "Path to the p2p private key (relative to home directory)")
 	flag.Parse()
 
 	slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -60,15 +64,14 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	err := run(ctx)
-	if err != nil {
+	if err := run(ctx); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 }
 
 func run(ctx context.Context) error {
-	p2pKey, privKey, err := getIdentity()
+	p2pKey, privKey, err := getIdentity(keyPath)
 	if err != nil {
 		return err
 	}
@@ -78,35 +81,13 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	listenAddrs := []string{
-		"/ip4/0.0.0.0/udp/10000/quic-v1",
-		"/ip6/::/udp/10000/quic-v1",
-	}
-	listenMAddrs := make([]multiaddr.Multiaddr, 0, len(listenAddrs))
-	for _, s := range listenAddrs {
-		addr, err := multiaddr.NewMultiaddr(s)
-		if err != nil {
-			return err
-		}
-		listenMAddrs = append(listenMAddrs, addr)
-	}
-
-	host, err := libp2p.New(libp2p.Identity(p2pKey), libp2p.ListenAddrs(listenMAddrs...), libp2p.ResourceManager(&network.NullResourceManager{}))
+	host, err := createLibp2pHost(p2pKey)
 	if err != nil {
 		return err
 	}
 	defer host.Close()
 
-	addrs, err := peer.AddrInfoToP2pAddrs(p2phost.InfoFromHost(host))
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("The p2p host is listening on:")
-	for _, addr := range addrs {
-		fmt.Println("* ", addr.String())
-	}
-	fmt.Println()
+	printListeningAddresses(host)
 
 	pubsub, err := pubsub.NewFloodSub(ctx, host)
 	if err != nil {
@@ -114,30 +95,13 @@ func run(ctx context.Context) error {
 	}
 
 	bootstrap := bootstrap2.NewService(signer.ID(), host, networkSize)
-	if isBootstrapper {
-		err := bootstrap.Serve(ctx)
-		if err != nil {
-			return err
-		}
-	} else {
-		maddr, err := multiaddr.NewMultiaddr(bootstrapper)
-		if err != nil {
-			return fmt.Errorf("wrong bootstrapper multiaddr: %w", err)
-		}
-
-		addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)
-		if err != nil {
-			return err
-		}
-
-		err = bootstrap.Start(ctx, *addrInfo)
-		if err != nil {
-			return err
-		}
+	if err := startBootstrap(ctx, bootstrap); err != nil {
+		return err
 	}
 
 	pool := bapl.NewMemPool()
 	defer pool.Close()
+
 	mcastPool := bapl.NewMulticastPool(pool, host, host.Network().Peers, signer, &batchVerifier{})
 	mcastPool.Start()
 	defer mcastPool.Stop()
@@ -146,85 +110,66 @@ func run(ctx context.Context) error {
 	hasher := dag.NewHasher()
 	broadcaster := gossip.NewBroadcaster(networkID, signer, cert, hasher, block.UnmarshalBlockID, pubsub)
 
-	err = broadcaster.Start()
-	if err != nil {
+	if err := broadcaster.Start(); err != nil {
 		return err
 	}
 	defer broadcaster.Stop(ctx)
 
-	select {
-	case <-time.After(kickoffTimeout):
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	waitForKickoffOrContext(ctx)
 
-	memebers, err := bootstrap.GetMembers(0)
+	members, err := bootstrap.GetMembers(0)
 	if err != nil {
 		return err
 	}
 
-	dagger := dag.NewChain(broadcaster, mcastPool, func(round uint64) (*quorum.Includers, error) {
-		return memebers, nil
-	}, privKey.PubKey())
+	dagger := createDAGChain(broadcaster, mcastPool, members, privKey)
 	dagger.Start()
 	defer dagger.Stop()
 
 	if batchSize == 0 {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		}
+		<-ctx.Done()
+		return ctx.Err()
 	}
+
 	RandomBatches(ctx, mcastPool, batchSize, batchTime)
 	return nil
 }
 
-const dir = "/.unison"
-
-func getIdentity() (libp2pcrypto.PrivKey, crypto.PrivKey, error) {
+func getIdentity(keyPath string) (libp2pcrypto.PrivKey, crypto.PrivKey, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	dir := home + dir
-	if err = os.Mkdir(dir, os.ModePerm); err != nil && !errors.Is(err, os.ErrExist) {
+	if keyPath == "" {
+		keyPath = "/.unison/key"
+	}
+	fullPath := home + keyPath
+
+	dir := home + "/.unison"
+	if err = os.MkdirAll(dir, os.ModePerm); err != nil && !errors.Is(err, os.ErrExist) {
 		return nil, nil, err
 	}
 
+	return loadOrCreateKey(fullPath)
+}
+
+func loadOrCreateKey(fullPath string) (libp2pcrypto.PrivKey, crypto.PrivKey, error) {
 	var keyBytes []byte
-	path := dir + "/key"
-	f, err := os.Open(path)
+	f, err := os.Open(fullPath)
 	if err != nil {
-		f, err = os.Create(path)
+		f, err = os.Create(fullPath)
 		if err != nil {
 			return nil, nil, err
 		}
+		defer f.Close()
 
-		privKey, _, err := libp2pcrypto.GenerateEd25519Key(rand.Reader)
+		keyBytes, err = createNewKey(f)
 		if err != nil {
-			defer f.Close()
 			return nil, nil, err
 		}
-
-		keyBytes, err = libp2pcrypto.MarshalPrivateKey(privKey)
-		if err != nil {
-			defer f.Close()
-			return nil, nil, err
-		}
-
-		_, err = f.Write(keyBytes)
-		if err != nil {
-			defer f.Close()
-			return nil, nil, err
-		}
-		if err = f.Sync(); err != nil {
-			return nil, nil, err
-		}
-	}
-	defer f.Close()
-
-	if keyBytes == nil {
+	} else {
+		defer f.Close()
 		keyBytes, err = io.ReadAll(f)
 		if err != nil {
 			return nil, nil, err
@@ -236,6 +181,32 @@ func getIdentity() (libp2pcrypto.PrivKey, crypto.PrivKey, error) {
 		return nil, nil, err
 	}
 
+	return getEd25519Key(p2pKey)
+}
+
+func createNewKey(f *os.File) ([]byte, error) {
+	privKey, _, err := libp2pcrypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	keyBytes, err := libp2pcrypto.MarshalPrivateKey(privKey)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := f.Write(keyBytes); err != nil {
+		return nil, err
+	}
+
+	if err := f.Sync(); err != nil {
+		return nil, err
+	}
+
+	return keyBytes, nil
+}
+
+func getEd25519Key(p2pKey libp2pcrypto.PrivKey) (libp2pcrypto.PrivKey, crypto.PrivKey, error) {
 	keyRaw, err := p2pKey.Raw()
 	if err != nil {
 		return nil, nil, err
@@ -244,6 +215,68 @@ func getIdentity() (libp2pcrypto.PrivKey, crypto.PrivKey, error) {
 
 	slog.Info("identity", "key", hex.EncodeToString(key))
 	return p2pKey, key, nil
+}
+
+func createLibp2pHost(p2pKey libp2pcrypto.PrivKey) (p2phost.Host, error) {
+	listenAddrs := []string{
+		fmt.Sprintf("/ip4/0.0.0.0/udp/%d/quic-v1", listenPort),
+		fmt.Sprintf("/ip6/::/udp/%d/quic-v1", listenPort),
+	}
+	listenMAddrs := make([]multiaddr.Multiaddr, 0, len(listenAddrs))
+	for _, s := range listenAddrs {
+		addr, err := multiaddr.NewMultiaddr(s)
+		if err != nil {
+			return nil, err
+		}
+		listenMAddrs = append(listenMAddrs, addr)
+	}
+
+	return libp2p.New(libp2p.Identity(p2pKey), libp2p.ListenAddrs(listenMAddrs...), libp2p.ResourceManager(&network.NullResourceManager{}))
+}
+
+func printListeningAddresses(host p2phost.Host) {
+	addrs, err := peer.AddrInfoToP2pAddrs(p2phost.InfoFromHost(host))
+	if err != nil {
+		fmt.Println("Error getting addresses:", err)
+		return
+	}
+
+	fmt.Println("The p2p host is listening on:")
+	for _, addr := range addrs {
+		fmt.Println("* ", addr.String())
+	}
+	fmt.Println()
+}
+
+func startBootstrap(ctx context.Context, bootstrap *bootstrap2.Service) error {
+	if isBootstrapper {
+		return bootstrap.Serve(ctx)
+	}
+
+	maddr, err := multiaddr.NewMultiaddr(bootstrapper)
+	if err != nil {
+		return fmt.Errorf("wrong bootstrapper multiaddr: %w", err)
+	}
+
+	addrInfo, err := peer.AddrInfoFromP2pAddr(maddr)
+	if err != nil {
+		return err
+	}
+
+	return bootstrap.Start(ctx, *addrInfo)
+}
+
+func waitForKickoffOrContext(ctx context.Context) {
+	select {
+	case <-time.After(kickoffTimeout):
+	case <-ctx.Done():
+	}
+}
+
+func createDAGChain(broadcaster *gossip.Broadcaster, mcastPool *bapl.MulticastPool, members *quorum.Includers, privKey crypto.PrivKey) *dag.Chain {
+	return dag.NewChain(broadcaster, mcastPool, func(round uint64) (*quorum.Includers, error) {
+		return members, nil
+	}, privKey.PubKey())
 }
 
 type batchVerifier struct{}
