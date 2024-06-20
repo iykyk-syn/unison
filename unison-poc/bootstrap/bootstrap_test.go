@@ -27,7 +27,7 @@ func TestBootstrap(t *testing.T) {
 	keys := make([][]byte, nodeCount)
 	for i := range nodeCount {
 		randKey := make([]byte, 32)
-		rand.Reader.Read(randKey)
+		rand.Reader.Read(randKey) //nolint: errcheck
 		keys[i] = randKey
 		hosts[i] = testHost(t, randKey)
 	}
@@ -36,11 +36,12 @@ func TestBootstrap(t *testing.T) {
 
 	svcs := make([]*Service, nodeCount)
 	for i, h := range hosts {
-		svcs[i] = NewService(keys[i], h)
+		svcs[i] = NewService(keys[i], h, nodeCount)
 	}
 
 	var wg sync.WaitGroup
-	svcs[0].Serve()
+	err := svcs[0].Serve(ctx)
+	require.NoError(t, err)
 	for _, svc := range svcs[1:] {
 		wg.Add(1)
 		go func() {

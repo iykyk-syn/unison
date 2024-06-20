@@ -85,7 +85,10 @@ func (bro *Broadcaster) processData(ctx context.Context, gsp gossipmsg.Gossip) e
 		// so delete it
 		deleteErr := r.DeleteCertificate(ctx, id)
 		if err != nil {
-			err = errors.Join(err, fmt.Errorf("deleting invalid certificate(%s) from round(%d): %w", id.String(), id.Round(), deleteErr))
+			err = errors.Join(err,
+				fmt.Errorf("deleting invalid certificate(%s) from round(%d): %w",
+					id.String(), id.Round(), deleteErr),
+			)
 		}
 		return err
 	}
@@ -169,7 +172,12 @@ func (bro *Broadcaster) processSignature(ctx context.Context, gsp gossipmsg.Goss
 		if errors.Is(err, round.ErrClosedRound) {
 			return nil
 		}
-		return fmt.Errorf("adding signature from(%X) to certificate(%s), for round(%d): %w", signature.Signer, id.String(), id.Round(), err)
+		return fmt.Errorf("adding signature from(%X) to certificate(%s), for round(%d): %w",
+			signature.Signer,
+			id.String(),
+			id.Round(),
+			err,
+		)
 	}
 
 	return nil

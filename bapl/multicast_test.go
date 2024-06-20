@@ -75,7 +75,7 @@ func (v verifier) Verify(context.Context, *Batch) (bool, error) {
 
 func randBatch() *Batch {
 	b := &Batch{Data: make([]byte, 256)}
-	rand.Reader.Read(b.Data)
+	rand.Reader.Read(b.Data) //nolint: errcheck
 	return b
 }
 
@@ -103,7 +103,7 @@ func newTestSigner() *testSigner {
 func (t *testSigner) Sign(bytes []byte) (crypto2.Signature, error) {
 	sig, err := t.privkey.Sign(rand.Reader, bytes, crypto.Hash(0))
 	if err != nil {
-		return crypto2.Signature{}, nil
+		return crypto2.Signature{}, err
 	}
 
 	return crypto2.Signature{

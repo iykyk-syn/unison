@@ -15,7 +15,7 @@ const (
 
 type PublicKey []byte
 
-func (pubKey PublicKey) VerifySignature(msg []byte, sig []byte) bool {
+func (pubKey PublicKey) VerifySignature(msg, sig []byte) bool {
 	if len(sig) != ed25519.SignatureSize {
 		return false
 	}

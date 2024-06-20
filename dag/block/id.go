@@ -39,20 +39,20 @@ func (id *blockID) String() string {
 func (id *blockID) MarshalBinary() ([]byte, error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
-		return nil, fmt.Errorf("creating a segemnt for capnp:%v", err)
+		return nil, fmt.Errorf("creating a segemnt for capnp: %w", err)
 	}
 
-	blockId, err := block.NewRootBlockID(seg)
+	blockID, err := block.NewRootBlockID(seg)
 	if err != nil {
-		return nil, fmt.Errorf("converting segment to message id:%v", err)
+		return nil, fmt.Errorf("converting segment to message id: %w", err)
 	}
 
-	err = blockId.SetHash(id.hash)
+	err = blockID.SetHash(id.hash)
 	if err != nil {
 		return nil, err
 	}
-	blockId.SetRound(id.round)
-	err = blockId.SetSigner(id.signer)
+	blockID.SetRound(id.round)
+	err = blockID.SetSigner(id.signer)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (id *blockID) UnmarshalBinary(data []byte) error {
 
 	msgID, err := block.ReadRootBlockID(msg)
 	if err != nil {
-		return fmt.Errorf("converting received binary data to messageID: %v", err)
+		return fmt.Errorf("converting received binary data to messageID: %w", err)
 	}
 
 	id.round = msgID.Round()

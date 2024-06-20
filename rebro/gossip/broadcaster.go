@@ -37,7 +37,14 @@ type Broadcaster struct {
 }
 
 // NewBroadcaster instantiates a new gossiping [Broadcaster].
-func NewBroadcaster(networkID rebro.NetworkID, singer crypto.Signer, certifier rebro.Certifier, hasher rebro.Hasher, decoder rebro.MessageIDDecoder, ps *pubsub.PubSub) *Broadcaster {
+func NewBroadcaster(
+	networkID rebro.NetworkID,
+	singer crypto.Signer,
+	certifier rebro.Certifier,
+	hasher rebro.Hasher,
+	decoder rebro.MessageIDDecoder,
+	ps *pubsub.PubSub,
+) *Broadcaster {
 	return &Broadcaster{
 		networkID: networkID,
 		rounds:    round.NewManager(),
@@ -158,7 +165,11 @@ func (bro *Broadcaster) broadcastGossip(ctx context.Context, setter func(gossipm
 }
 
 // deliverGossip delivers a PubSub gossip and reports its validity status
-func (bro *Broadcaster) deliverGossip(ctx context.Context, _ peer.ID, gossip *pubsub.Message) (res pubsub.ValidationResult) {
+func (bro *Broadcaster) deliverGossip(
+	ctx context.Context,
+	_ peer.ID,
+	gossip *pubsub.Message,
+) (res pubsub.ValidationResult) {
 	defer func() {
 		// recover from potential panics caused by network gossips
 		err := recover()

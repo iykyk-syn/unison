@@ -19,7 +19,7 @@ func RandomBatches(ctx context.Context, pool bapl.BatchPool, batchSize int, batc
 		case <-ticker.C:
 			go func() {
 				batchData := make([]byte, batchSize)
-				rand.Read(batchData)
+				rand.Read(batchData) //nolint: errcheck
 				batch := &bapl.Batch{Data: batchData}
 				err := pool.Push(ctx, batch)
 				if err != nil {

@@ -66,19 +66,21 @@ func (b *Block) String() string {
 func (b *Block) MarshalBinary() ([]byte, error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
-		return nil, fmt.Errorf("creating a segemnt for capnp:%v", err)
+		return nil, fmt.Errorf("creating a segemnt for capnp: %w", err)
 	}
 
 	block, err := block.NewRootBlock(seg)
 	if err != nil {
-		return nil, fmt.Errorf("converting segment to message id:%v", err)
+		return nil, fmt.Errorf("converting segment to message id: %w", err)
 	}
 
 	block.SetRound(b.blockID.round)
+
 	err = block.SetSigner(b.blockID.signer)
 	if err != nil {
 		return nil, err
 	}
+
 	bList, err := block.NewBatches(int32(len(b.batches)))
 	if err != nil {
 		return nil, err
@@ -90,18 +92,24 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 			return nil, err
 		}
 	}
+
 	err = block.SetBatches(bList)
 	if err != nil {
 		return nil, err
 	}
 
 	pList, err := block.NewParents(int32(len(b.parents)))
+	if err != nil {
+		return nil, err
+	}
+
 	for i, pp := range b.parents {
 		err = pList.Set(i, pp)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	err = block.SetParents(pList)
 	if err != nil {
 		return nil, err
@@ -117,12 +125,15 @@ func (b *Block) UnmarshalBinary(data []byte) error {
 
 	block, err := block.ReadRootBlock(msg)
 	if err != nil {
-		return fmt.Errorf("converting received binary data to messageID: %v", err)
+		return fmt.Errorf("converting received binary data to messageID: %w", err)
 	}
 
 	b.blockID = &blockID{}
 	b.blockID.round = block.Round()
 	b.blockID.signer, err = block.Signer()
+	if err != nil {
+		return err
+	}
 	batchList, err := block.Batches()
 	if err != nil {
 		return err

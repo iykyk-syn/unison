@@ -14,6 +14,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/libp2p/go-libp2p"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
+	p2phost "github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/multiformats/go-multiaddr"
+
 	"github.com/iykyk-syn/unison/bapl"
 	"github.com/iykyk-syn/unison/crypto"
 	"github.com/iykyk-syn/unison/crypto/ed25519"
@@ -24,13 +32,6 @@ import (
 	"github.com/iykyk-syn/unison/rebro"
 	"github.com/iykyk-syn/unison/rebro/gossip"
 	bootstrap2 "github.com/iykyk-syn/unison/unison-poc/bootstrap"
-	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-pubsub"
-	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
-	p2phost "github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/network"
-	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/multiformats/go-multiaddr"
 )
 
 var networkID rebro.NetworkID = "poc"
@@ -45,12 +46,22 @@ var (
 )
 
 func init() {
-	flag.BoolVar(&isBootstrapper, "is-bootstrapper", false, "To indicate node is bootstrapper")
-	flag.StringVar(&bootstrapper, "bootstrapper", "", "Specifies network bootstrapper multiaddr")
-	flag.DurationVar(&kickoffTimeout, "kickoff-timeout", time.Second*5, "Timeout before starting block production")
-	flag.IntVar(&batchSize, "batch-size", 2000*125, "Batch size to be produced every 'batch-time' (bytes). 0 disables batch production")
+	flag.BoolVar(&isBootstrapper, "is-bootstrapper", false,
+		"To indicate node is bootstrapper",
+	)
+	flag.StringVar(&bootstrapper, "bootstrapper", "",
+		"Specifies network bootstrapper multiaddr",
+	)
+	flag.DurationVar(&kickoffTimeout, "kickoff-timeout", time.Second*5,
+		"Timeout before starting block production",
+	)
+	flag.IntVar(&batchSize, "batch-size", 2000*125,
+		"Batch size to be produced every 'batch-time' (bytes). 0 disables batch production",
+	)
 	flag.DurationVar(&batchTime, "batch-time", time.Second, "Batch production time")
-	flag.IntVar(&networkSize, "network-size", 0, "Expected network size to wait for before starting the network. SKips if 0")
+	flag.IntVar(&networkSize, "network-size", 0,
+		"Expected network size to wait for before starting the network. SKips if 0",
+	)
 	flag.Parse()
 
 	slog.SetLogLoggerLevel(slog.LevelDebug)
@@ -63,7 +74,8 @@ func main() {
 	err := run(ctx)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		defer os.Exit(1)
+		return
 	}
 }
 
@@ -91,7 +103,11 @@ func run(ctx context.Context) error {
 		listenMAddrs = append(listenMAddrs, addr)
 	}
 
-	host, err := libp2p.New(libp2p.Identity(p2pKey), libp2p.ListenAddrs(listenMAddrs...), libp2p.ResourceManager(&network.NullResourceManager{}))
+	host, err := libp2p.New(
+		libp2p.Identity(p2pKey),
+		libp2p.ListenAddrs(listenMAddrs...),
+		libp2p.ResourceManager(&network.NullResourceManager{}),
+	)
 	if err != nil {
 		return err
 	}
@@ -108,7 +124,7 @@ func run(ctx context.Context) error {
 	}
 	fmt.Println()
 
-	pubsub, err := pubsub.NewFloodSub(ctx, host)
+	pSub, err := pubsub.NewFloodSub(ctx, host)
 	if err != nil {
 		return err
 	}
@@ -144,13 +160,13 @@ func run(ctx context.Context) error {
 
 	cert := dag.NewCertifier(mcastPool)
 	hasher := dag.NewHasher()
-	broadcaster := gossip.NewBroadcaster(networkID, signer, cert, hasher, block.UnmarshalBlockID, pubsub)
+	broadcaster := gossip.NewBroadcaster(networkID, signer, cert, hasher, block.UnmarshalBlockID, pSub)
 
 	err = broadcaster.Start()
 	if err != nil {
 		return err
 	}
-	defer broadcaster.Stop(ctx)
+	defer broadcaster.Stop(ctx) //nolint: errcheck
 
 	select {
 	case <-time.After(kickoffTimeout):
@@ -163,17 +179,15 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	dagger := dag.NewChain(broadcaster, mcastPool, func(round uint64) (*quorum.Includers, error) {
+	dagger := dag.NewChain(broadcaster, mcastPool, func(uint64) (*quorum.Includers, error) {
 		return memebers, nil
 	}, privKey.PubKey())
 	dagger.Start()
 	defer dagger.Stop()
 
 	if batchSize == 0 {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		}
+		<-ctx.Done()
+		return ctx.Err()
 	}
 	RandomBatches(ctx, mcastPool, batchSize, batchTime)
 	return nil

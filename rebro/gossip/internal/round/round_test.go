@@ -19,7 +19,7 @@ func TestRound(t *testing.T) {
 
 	quorum := newQuorum()
 	r := NewRound(0, quorum)
-	id := &messageId{id: "msgid"}
+	id := &messageID{id: "msgid"}
 
 	// check all the basic crud operations work
 	err := r.AddCertificate(ctx, rebro.Message{ID: id})
@@ -40,9 +40,10 @@ func TestRound(t *testing.T) {
 
 	// ensure we get errors after stopping
 	err = r.AddSignature(ctx, id, crypto.Signature{})
-	require.Error(t, ErrClosedRound)
+
+	require.ErrorAs(t, err, ErrClosedRound)
 	err = r.Stop(ctx)
-	require.Error(t, ErrClosedRound)
+	require.ErrorAs(t, err, ErrClosedRound)
 }
 
 func TestRoundSubscription(t *testing.T) {
@@ -51,7 +52,7 @@ func TestRoundSubscription(t *testing.T) {
 
 	quorum := newQuorum()
 	r := NewRound(0, quorum)
-	id := &messageId{id: "msgid"}
+	id := &messageID{id: "msgid"}
 
 	// subscribe for certificate
 	commCh, errCh := make(chan rebro.Certificate), make(chan error)
@@ -68,7 +69,7 @@ func TestRoundSubscription(t *testing.T) {
 
 	// ensure subscription cancellation works
 	getCtx, cancel := context.WithTimeout(ctx, time.Millisecond*10)
-	comm, err := r.GetCertificate(getCtx, &messageId{id: "msgid2"})
+	comm, err := r.GetCertificate(getCtx, &messageID{id: "msgid2"})
 	require.Error(t, err)
 	require.Nil(t, comm)
 	cancel()
@@ -96,7 +97,7 @@ func TestRoundGracefulShutdown(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		err := r.execOpAsync(ctx, &stateOp{
-			msg:    &rebro.Message{ID: &messageId{id: strconv.Itoa(i)}},
+			msg:    &rebro.Message{ID: &messageID{id: strconv.Itoa(i)}},
 			doneCh: make(chan any, 1),
 		})
 		if err != nil {
@@ -118,7 +119,7 @@ func TestRoundConcurrentAccess(t *testing.T) {
 
 	wg := errgroup.Group{}
 	for i := 0; i < 100; i++ {
-		id := &messageId{id: strconv.Itoa(i)}
+		id := &messageID{id: strconv.Itoa(i)}
 		wg.Go(func() error {
 			commCh, errCh := make(chan rebro.Certificate), make(chan error)
 			go func() {
@@ -169,7 +170,7 @@ func TestRoundFinalize(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	id := &messageId{id: "msgid"}
+	id := &messageID{id: "msgid"}
 	quorum := newQuorum()
 	r := NewRound(0, quorum)
 
@@ -193,7 +194,7 @@ func TestRoundFinalize(t *testing.T) {
 	assert.Error(t, err)
 	cancel()
 
-	// but after one more singature
+	// but after one more signature
 	err = r.AddSignature(ctx, id, crypto.Signature{})
 	if err != nil {
 		t.Error(err)
@@ -208,39 +209,39 @@ func TestRoundFinalize(t *testing.T) {
 	assert.True(t, ok)
 }
 
-type messageId struct {
+type messageID struct {
 	round uint64
 	id    string
 }
 
-func (m *messageId) Round() uint64 {
+func (m *messageID) Round() uint64 {
 	return m.round
 }
 
-func (m *messageId) Signer() []byte {
+func (m *messageID) Signer() []byte {
 	return nil
 }
 
-func (m *messageId) Hash() []byte {
+func (m *messageID) Hash() []byte {
 	return nil
 }
 
-func (m *messageId) String() string {
+func (m *messageID) String() string {
 	return m.id
 }
 
-func (m *messageId) New() rebro.MessageID {
-	return &messageId{}
+func (m *messageID) New() rebro.MessageID {
+	return &messageID{}
 }
 
-func (m *messageId) Validate() error { return nil }
+func (m *messageID) Validate() error { return nil }
 
-func (m *messageId) MarshalBinary() ([]byte, error) {
+func (m *messageID) MarshalBinary() ([]byte, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (m *messageId) UnmarshalBinary(bytes []byte) error {
+func (m *messageID) UnmarshalBinary(bytes []byte) error {
 	// TODO implement me
 	panic("implement me")
 }

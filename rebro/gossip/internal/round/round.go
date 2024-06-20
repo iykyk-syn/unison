@@ -33,7 +33,7 @@ type Round struct {
 	getOpSubs map[string]map[*stateOp]struct{}
 	// finalCh gets closed when the quorum certificate has been finalized to notify listeners
 	finalCh chan struct{}
-	// signalling for graceful shutdown
+	// signaling for graceful shutdown
 	closeCh, closedCh chan struct{}
 }
 
@@ -133,10 +133,10 @@ func (r *Round) GetCertificate(ctx context.Context, id rebro.MessageID) (rebro.C
 	if err == nil || ctx.Err() == nil {
 		return op.comm, err
 	}
-	// if the context got cancelled for any reason,
+	// if the context got canceled for any reason,
 	// cancel the get subscription by executing the op over
 	//
-	// set a timeout, as the main context got cancelled already,
+	// set a timeout, as the main context got canceled already,
 	// and we want to prevent the caller from waiting indefinitely
 	ctx, cancel := context.WithTimeout(context.Background(), subscriptionCancellationTimeout)
 	err = errors.Join(err, r.execOp(ctx, op))
@@ -171,7 +171,6 @@ func (r *Round) stateGet(op *stateOp) {
 		delete(r.getOpSubs, key)
 	}
 	op.SetError(nil)
-	return
 }
 
 // DeleteCertificate deletes certificate from the [Round] by the associated [rebro.MessageID].
@@ -239,7 +238,7 @@ func (r *Round) stateAddSign(op *stateOp) {
 }
 
 // execOp submits operation for execution by [stateLoop] and awaits for its completion
-// It permits submission until closedCh is closed or context is cancelled, even after closing is
+// It permits submission until closedCh is closed or context is canceled, even after closing is
 // triggered. This allows some "last-minute" operations to "squeeze in" before [Round] fully finishes.
 func (r *Round) execOp(ctx context.Context, op *stateOp) error {
 	select {

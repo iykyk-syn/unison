@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -105,7 +106,7 @@ func (serv *Service) Serve(ctx context.Context) error {
 		select {
 		case <-dn:
 		case <-ctx.Done():
-			stream.Reset()
+			stream.Reset() //nolint: errcheck
 			return
 		}
 
@@ -131,7 +132,10 @@ func (serv *Service) Serve(ctx context.Context) error {
 			return
 		}
 
-		if _, err = stream.Read([]byte{}); err != nil && err != io.EOF {
+		_, err = stream.Read([]byte{})
+		switch {
+		case err == nil, errors.Is(err, io.EOF):
+		default:
 			serv.log.Error(err.Error())
 		}
 	})

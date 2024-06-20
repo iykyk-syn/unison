@@ -26,24 +26,24 @@ func (c *certifier) Certify(ctx context.Context, msg rebro.Message) error {
 	}
 	err := msg.ID.Validate()
 	if err != nil {
-		return fmt.Errorf("validating blockID:%v", err)
+		return fmt.Errorf("validating blockID: %w", err)
 	}
 
 	blk := &block.Block{}
 	err = blk.UnmarshalBinary(msg.Data)
 	if err != nil {
-		return fmt.Errorf("unmarshalling block %v", err)
+		return fmt.Errorf("unmarshalling block %w", err)
 	}
 
 	err = blk.Validate()
 	if err != nil {
-		return fmt.Errorf("validating block %v", err)
+		return fmt.Errorf("validating block %w", err)
 	}
 
 	for _, hash := range blk.Batches() {
 		_, err = c.pool.Pull(ctx, hash)
 		if err != nil && !errors.Is(err, bapl.ErrBatchDeleted) { // TODO: This is a temporary workaround
-			return fmt.Errorf("getting bacth hash %v", err)
+			return fmt.Errorf("getting bacth hash %w", err)
 		}
 	}
 
